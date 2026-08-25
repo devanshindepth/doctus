@@ -43,7 +43,12 @@ The LLM may *propose* actions; only valid signed credentials *authorize* them. F
 ## 4. Open questions (resolve before build)
 
 - Q4: Real-Veo stretch beat needs GCP billing/quota confirmation — only relevant if time remains after P5. *(Owner decision, non-blocking)*
-- Q5: Freeze the ODRL action-vocabulary subset we honor (which odrl:Actions map to publish/remix/train_on/license_out) during P1 — must be pinned before fixtures multiply. *(Engineering decision)*
+- ~~Q5~~ **Pinned** (P0): ODRL action vocabulary frozen in `src/doctus/engine/models.py` (`CLAIM_VERBS`): license→{publish,remix,license_out}, likeness_consent/music_clearance→publish, training_consent→train_on.
+
+### Known v1 simplifications (declared, not hidden)
+- Deny records do not yet prune union branches (deny-dominance is v2). Union only merges positive same-source grants; a deny can never widen.
+- Trust model = static signer trust-list flag on claims; real cert-chain validation against C2PA trust lists arrives with c2patool ingest (P1).
+- Gate compiles fresh per check (correctness-first); materialized cache is written for analytics but not yet read back (latency already <5 ms).
 
 ## 5. Non-negotiables (invariants)
 
