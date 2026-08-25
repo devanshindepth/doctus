@@ -1,0 +1,19 @@
+# Missing ingredient claim entirely -> INGREDIENT_UNCLEARED naming the asset.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: comp_v5, label: composite }
+  - { id: mystery_clip, label: "no paperwork at all" }
+edges:
+  - { asset: comp_v5, ingredient: mystery_clip }
+claims:
+  - { claim_id: g5, kind: generation, asset: comp_v5, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+actions:
+  - name: publish_uncovered_composite
+    verb: publish
+    asset: comp_v5
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: INGREDIENT_UNCLEARED
+      detail_contains: "mystery_clip"

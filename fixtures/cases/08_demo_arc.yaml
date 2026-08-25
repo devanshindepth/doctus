@@ -1,0 +1,50 @@
+# THE FULL DEMO ARC (D7): deny -> negotiation drafts extension -> countersign
+# -> recompile -> the SAME action now sails through.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: shot_demo, label: "hero shot" }
+  - { id: bed_demo, label: "festival-only bed" }
+edges:
+  - { asset: shot_demo, ingredient: bed_demo }
+claims:
+  - { claim_id: gd, kind: generation, asset: shot_demo, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_fest_only
+    kind: music_clearance
+    asset: bed_demo
+    signer: label-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [festival]
+      territories: [US]
+      valid_until: "2027-01-01T00:00:00+00:00"
+actions:
+  # beat 5: blocked with named missing claim
+  - name: trailer_blocked
+    verb: publish
+    asset: shot_demo
+    channel: trailer
+    territory: US
+    expect:
+      allowed: false
+      reason: SCOPE_EXCEEDED
+      detail_contains: "'trailer' outside ['festival']"
+  # beats 6-8 happen out-of-band: negotiator drafts extension, human approves;
+  # the harness simulates that by adding the countersigned claim mid-case via
+  # 'post_claims', then the identical action is retried and ALLOWED.
+post_claims:
+  - claim_id: lic_extension_trailer
+    kind: music_clearance
+    asset: bed_demo
+    signer: label-key
+    issued_at: "2026-08-30T12:05:00+00:00"
+    scope:
+      channels: [trailer]
+      territories: [US]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions_after_post:
+  - name: trailer_allowed_after_countersign
+    verb: publish
+    asset: shot_demo
+    channel: trailer
+    territory: US
+    expect: { allowed: true }

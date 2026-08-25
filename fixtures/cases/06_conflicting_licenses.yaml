@@ -1,0 +1,26 @@
+# Conflicting sources: trailer+US ∩ festival+EU => empty => publish absent.
+# (Same-source alternatives would union; these are different signers/sources.)
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: shot_v6, label: "two incompatible licenses" }
+claims:
+  - { claim_id: g6, kind: generation, asset: shot_v6, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_a
+    kind: license
+    asset: shot_v6
+    signer: publisher-a-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [trailer]
+      territories: [US]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions:
+  - name: publish_broadcast_denied
+    verb: publish
+    asset: shot_v6
+    channel: broadcast
+    territory: US
+    expect:
+      allowed: false
+      reason: SCOPE_EXCEEDED
+      detail_contains: "'broadcast' outside ['trailer']"

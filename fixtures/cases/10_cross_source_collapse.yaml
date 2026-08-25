@@ -1,0 +1,39 @@
+# Cross-source collapse: two DIFFERENT sources license disjoint channels;
+# intersection empties => publish absent => VERB_NOT_GRANTED.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: shot_v10, label: "double-sourced, incompatible" }
+  - { id: bed_x, label: "source X" }
+  - { id: bed_y, label: "source Y" }
+edges:
+  - { asset: shot_v10, ingredient: bed_x }
+  - { asset: shot_v10, ingredient: bed_y }
+claims:
+  - { claim_id: g10, kind: generation, asset: shot_v10, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_x
+    kind: license
+    asset: bed_x
+    signer: publisher-x-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [festival]
+      territories: [US]
+      valid_until: "2027-06-01T00:00:00+00:00"
+  - claim_id: lic_y
+    kind: license
+    asset: bed_y
+    signer: publisher-y-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [broadcast]
+      territories: [US]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions:
+  - name: publish_collapsed
+    verb: publish
+    asset: shot_v10
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: VERB_NOT_GRANTED

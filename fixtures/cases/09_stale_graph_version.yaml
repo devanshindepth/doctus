@@ -1,0 +1,16 @@
+# Stale-plan protection: action planned against old graph version is rejected.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: owned_original, label: "fully-owned original" }
+claims:
+  - { claim_id: g8, kind: generation, asset: owned_original, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+actions:
+  - name: stale_plan_rejected
+    verb: publish
+    asset: owned_original
+    channel: broadcast
+    territory: US
+    expected_graph_version: 99999
+    expect:
+      allowed: false
+      reason: GRAPH_VERSION_STALE

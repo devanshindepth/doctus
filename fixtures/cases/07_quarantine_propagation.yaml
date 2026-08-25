@@ -1,0 +1,19 @@
+# Quarantine propagation: unsigned input poisons every downstream composite.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: comp_v7, label: "composite of scraped clip" }
+  - { id: scraped_clip, label: "unsigned Midjourney-era asset" }
+edges:
+  - { asset: comp_v7, ingredient: scraped_clip }
+claims:
+  - { claim_id: g7, kind: generation, asset: comp_v7, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+actions:
+  - name: publish_quarantined
+    verb: publish
+    asset: comp_v7
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: INGREDIENT_UNCLEARED
+      detail_contains: "scraped_clip"

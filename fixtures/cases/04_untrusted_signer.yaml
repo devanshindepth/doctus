@@ -1,0 +1,28 @@
+# Untrusted signer: claim exists but fails trust-list check -> UNTRUSTED_SIGNER.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: shot_v4, label: composite }
+  - { id: shady_bed, label: "self-signed 'license'" }
+edges:
+  - { asset: shot_v4, ingredient: shady_bed }
+claims:
+  - { claim_id: g4, kind: generation, asset: shot_v4, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_shady
+    kind: license
+    asset: shady_bed
+    signer: random-guy-key
+    trusted: false
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [trailer]
+      territories: [US]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions:
+  - name: publish_with_shady_license
+    verb: publish
+    asset: shot_v4
+    channel: trailer
+    territory: US
+    expect:
+      allowed: false
+      reason: UNTRUSTED_SIGNER

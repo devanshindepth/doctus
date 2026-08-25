@@ -1,0 +1,31 @@
+# Clean chain: owned original + fully licensed music bed -> publish allowed.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: shot_v1, label: "Veo shot (prebaked, signed)" }
+  - { id: music_bed, label: "licensed music bed" }
+edges:
+  - { asset: shot_v1, ingredient: music_bed }
+claims:
+  - { claim_id: g1, kind: generation, asset: shot_v1, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_music
+    kind: license
+    asset: music_bed
+    signer: publisher-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [festival, trailer]
+      territories: [US, CA]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions:
+  - name: publish_festival_us
+    verb: publish
+    asset: shot_v1
+    channel: festival
+    territory: US
+    expect: { allowed: true }
+  - name: publish_trailer_ca
+    verb: publish
+    asset: shot_v1
+    channel: trailer
+    territory: CA
+    expect: { allowed: true }

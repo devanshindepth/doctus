@@ -36,12 +36,14 @@ The LLM may *propose* actions; only valid signed credentials *authorize* them. F
 | D5 | Narrowest-scope-wins on license intersection conflicts | Conservative intersection = defensible to lawyers |
 | D6 | v1 languages/formats: MP4/WebP/JPEG via c2patool; ODRL-JSON license assertions | c2patool SDK is mature; ODRL keeps licenses machine-readable without custom schema sprawl |
 | D7 | Demo arc (fixed): Veo shot → attach mock likeness consent → composite music bed licensed festival-only → agent tries trailer publish → BLOCKED with named missing claim → negotiation drafts extension → human approves → publish passes | One arc demonstrates derive→gate→explain→fix |
+| D8 | Partner track = **ClickHouse** | Owner call (A1): rights graph as real-time analytics is the deepest Technological Implementation story |
+| D9 | Demo pipeline is built on **pre-baked c2patool-signed assets**; real-Veo wiring only as a P4 stretch if GCP billing is confirmed | Owner call (A2): demo resilience beats cloud risk |
+| D10 | Instrument language = **W3C ODRL 2.2** for licenses AND likeness-consents, embedded in C2PA manifests as JSON-LD extension assertions | Owner call (A3): adopt an existing standard, not custom schema; AgentODRL shows tooling exists |
 
 ## 4. Open questions (resolve before build)
 
-- Q1: ClickHouse vs Parallel final call → needs one working session with each MCP to feel integration depth. *(Owner decision)*
-- Q2: Does the hackathon demo use real Veo generations (needs GCP billing/quota confirmed) or pre-baked assets with real C2PA manifests? Pre-baked is the safe fallback; try real first.
-- Q3: Likeness-consent manifests: invent a minimal JSON assertion schema now (hackathon scope) or adopt an existing draft standard? Lean minimal-custom, documented as such.
+- Q4: Real-Veo stretch beat needs GCP billing/quota confirmation — only relevant if time remains after P5. *(Owner decision, non-blocking)*
+- Q5: Freeze the ODRL action-vocabulary subset we honor (which odrl:Actions map to publish/remix/train_on/license_out) during P1 — must be pinned before fixtures multiply. *(Engineering decision)*
 
 ## 5. Non-negotiables (invariants)
 
