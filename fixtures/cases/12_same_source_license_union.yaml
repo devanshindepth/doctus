@@ -1,0 +1,51 @@
+# Same-source alternatives UNION before cross-source intersection (v1 scope
+# algebra): two partial licenses from ONE licensor on one asset combine their
+# channel/territory sets; the tighter window wins (until = min).
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: cut_v1, label: "cut using one bed under two partial licenses" }
+  - { id: bed_multi, label: "music bed" }
+edges:
+  - { asset: cut_v1, ingredient: bed_multi }
+claims:
+  - { claim_id: gen_cut, kind: generation, asset: cut_v1, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_fest_only
+    kind: license
+    asset: bed_multi
+    signer: publisher-key
+    issued_at: "2026-07-01T00:00:00+00:00"
+    scope:
+      channels: [festival]
+      territories: [US]
+      valid_until: "2027-02-01T00:00:00+00:00"
+  - claim_id: lic_social_only
+    kind: license
+    asset: bed_multi
+    signer: publisher-key
+    issued_at: "2026-07-15T00:00:00+00:00"
+    scope:
+      channels: [social]
+      territories: [CA]
+      valid_until: "2027-06-01T00:00:00+00:00"
+actions:
+  - name: publish_festival_us          # covered by lic_fest_only
+    verb: publish
+    asset: cut_v1
+    channel: festival
+    territory: US
+    expect: { allowed: true }
+  - name: publish_social_ca            # covered by lic_social_only
+    verb: publish
+    asset: cut_v1
+    channel: social
+    territory: CA
+    expect: { allowed: true }
+  - name: publish_broadcast_us         # channel never licensed by anyone
+    verb: publish
+    asset: cut_v1
+    channel: broadcast
+    territory: US
+    expect:
+      allowed: false
+      reason: SCOPE_EXCEEDED
+      detail_contains: "'broadcast' outside"

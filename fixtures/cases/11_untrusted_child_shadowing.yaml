@@ -1,0 +1,35 @@
+# Untrusted-signer shadowing: a child chain dies because an ANCESTOR carries
+# unverified claims — even when the child's own paperwork is perfect and the
+# forged instrument looks generous (fail-closed, CONTEXT invariant 2).
+# Mirrors what the rogue-signed fixture proves end-to-end in test_c2pa_ingest.py.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: composite_v2, label: "composite derived from a rogue-signed shot" }
+  - { id: rogue_shot, label: "shot signed by an unknown CA" }
+edges:
+  - { asset: composite_v2, ingredient: rogue_shot }
+claims:
+  # stored for audit, but unverified => contributes nothing, poisons ancestry
+  - { claim_id: g_rogue, kind: generation, asset: rogue_shot, signer: unknown-ca, trusted: false, issued_at: "2026-08-01T00:00:00+00:00" }
+  - claim_id: lic_too_good
+    kind: license
+    asset: rogue_shot
+    signer: unknown-ca
+    trusted: false
+    issued_at: "2026-08-01T00:00:00+00:00"
+    scope:
+      channels: [festival, trailer, social]
+      territories: [US, EU]
+      valid_until: "2037-01-01T00:00:00+00:00"
+  # the studio's own layer is genuinely signed
+  - { claim_id: g_comp, kind: generation, asset: composite_v2, signer: veo-key, issued_at: "2026-08-02T00:00:00+00:00" }
+actions:
+  - name: publish_festival_us
+    verb: publish
+    asset: composite_v2
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: UNTRUSTED_SIGNER
+      detail_contains: "rogue_shot"
