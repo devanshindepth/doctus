@@ -85,6 +85,13 @@ Per asset, the compiled result:
 - Ingredient edges derive from native C2PA `ingredients[]`: v1 convention is that an ingredient's C2PA `title` mirrors its Doctus asset_id.
 - Prebake: `scripts/prebake_fixtures.py` regenerates the demo PKI (`fixtures/pki`, DEMO-ONLY keys committed on purpose) and re-signs all media in `fixtures/media/` (JPEG+MP4), including a rogue-signed attack fixture asserting wide rights. Manifests pin `claim_version: 1`; signer certs must carry an EKU (emailProtection) or c2pa-rs rejects them. A vendored `c2patool` binary lives in `tools/` locally (gitignored).
 
+### 3.1.1 `engine/decisions.py` — decision log (implemented P2)
+
+- Every gate check writes one row: action (`action_json`: verb, asset, channel, territory, recipient, expected_graph_version) → claims evaluated (`claims_evaluated_json`: every claim in the ancestor closure with id/kind/signer/trust) → outcome (allow/deny, reason, detail, negotiation_hint, permissions_version). Allows log their evidence too — the insurer artifact must show why something shipped.
+- Readers: `RightsGraph.decisions_for(asset_id)` / `all_decisions()`; renderer `render_report` is byte-stable for identical DB state; `summarize` feeds the ClickHouse dashboard (deny-reason histogram, per-asset counts).
+- CLI: `python scripts/decision_report.py <db> [asset_id]`.
+- Gate walks the ancestor closure once per check (quarantine + shadowing + explanations from a single pass); verdicts carry `decision_id` back into the log.
+
 ### 3.2 `engine/compiler.py` — Policy Compiler
 
 Deterministic. Signature sketch:
@@ -172,7 +179,7 @@ Fallback if Veo quota fails (Q2): pre-generated clips with real c2patool-signed 
 |---|---|---|---|
 | P0 Scaffold + fixtures | Aug 25 | repo layout, fixture harness, CI | golden runner executes empty case green |
 | P1 Graph + Compiler | Aug 26–27 | claims ingest (c2patool), compiler, 12 goldens | invariant tests pass; byte-stable output |
-| P2 Gate + decisions | Aug 28 | gate w/ full taxonomy, decision log | <5ms verdicts; all deny reasons covered by cases |
+| P2 Gate + decisions | Aug 28 | gate w/ full taxonomy, decision log | <5ms verdicts; all deny reasons covered by cases. Delivered Aug 26: audit rows carry action→claims→outcome, 13 goldens, report CLI |
 | P3 Agents | Aug 29–30 | production agent (ADK) routing through gate; countersign CLI/UI stub | demo beats 1–5 run end-to-end locally |
 | P4 GCP wiring | Aug 31–Sep 1 | Veo/Imagen real generations signed; deploy agent to Agent Builder; IAM scoping | beat 1 real-cloud; fallback prebaked verified too |
 | P5 Partner layer | Sep 2 | ClickHouse mirror + dashboard (or Parallel negotiator enrichment per Q1) | dashboard live-querying decisions |
