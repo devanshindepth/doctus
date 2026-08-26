@@ -1,0 +1,4 @@
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature
+# c2pa-rs requires an EKU; emailProtection is the conventional demo pick
+extendedKeyUsage=emailProtection
