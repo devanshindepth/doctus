@@ -2,3 +2,5 @@ scratch/
 __pycache__/
 *.pyc
 .venv/
+# vendored c2patool binary lives here locally (see docs/DESIGN.md §3.1); never committed
+tools/
