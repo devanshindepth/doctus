@@ -140,10 +140,13 @@ QUARANTINED_INPUT(asset_id) · GRAPH_VERSION_STALE(retry-after-recompile)
 
 The deny payload always carries: failed claim reference (or the missing-claim type), the minimal fix description, and a `negotiation_hint` the negotiator consumes.
 
-### 3.4 `agents/` — Production agent + Negotiator
+### 3.4 `agents/` — Production agent + Negotiator (implemented P3)
 
 - Production agent: Google ADK (Gemini), tools = generative ops (Veo/Imagen wrappers that auto-sign `generation` claims), edit/composite op (writes ingredient edges), and **all side-effectful verbs routed through the gate first**. The agent sees deny reasons verbatim — that's how it learns to route around gaps legally instead of prompt-fuzzing the gate (it can't; the gate doesn't negotiate).
 - Negotiator: second agent. Input = `negotiation_hint`. Output = draft instrument (license request / consent extension) rendered as a human-readable diff + machine-readable claim. **Never self-signs.** Human approval in the UI writes the signed claim and triggers recompile.
+- Implemented P3 (`src/doctus/agents/`): `ProductionAgent.generate/composite` sign real C2PA manifests at runtime (`agents/signing.py`; offline-safe, RFC 3161 timestamp opt-in via `ta_url`) and every side-effectful verb returns `ClearanceGate` verdicts as data. A scripted planner stands in for ADK until P4 — the propose→verdict→act/deny seam is what ADK tools will call. `Negotiator.draft_extension` maps a deny verdict to a minimal ODRL `DraftInstrument`; it never self-signs, refuses empty deal terms and generation instruments, and requires the caller to name the instrument class for scope/window denies (that choice IS the business deal). `CountersignLedger.propose/approve` is the human seam (invariant 6): APPROVE writes a trusted claim, bumps `graph_version`, invalidates compiled permissions, and records actor+instant in `countersign_log`. Double-signing raises.
+- CLIs: `scripts/demo_arc.py` runs beats 1–6 (beat 6 proposes, does not sign); `scripts/countersign.py list|show|approve` performs the human approval (beats 7–8).
+- Instrument-class rule (pinned by tests): an extension must be the SAME claim kind as the source's existing paperwork — same-kind unions within that source; a different kind becomes a second source and cross-source intersection collapses the chain (D5, invariant 1).
 
 ### 3.5 Partner-track glue (`mcp/`)
 
@@ -180,7 +183,7 @@ Fallback if Veo quota fails (Q2): pre-generated clips with real c2patool-signed 
 | P0 Scaffold + fixtures | Aug 25 | repo layout, fixture harness, CI | golden runner executes empty case green |
 | P1 Graph + Compiler | Aug 26–27 | claims ingest (c2patool), compiler, 12 goldens | invariant tests pass; byte-stable output |
 | P2 Gate + decisions | Aug 28 | gate w/ full taxonomy, decision log | <5ms verdicts; all deny reasons covered by cases. Delivered Aug 26: audit rows carry action→claims→outcome, 13 goldens, report CLI |
-| P3 Agents | Aug 29–30 | production agent (ADK) routing through gate; countersign CLI/UI stub | demo beats 1–5 run end-to-end locally |
+| P3 Agents | Aug 29–30 | production agent (ADK) routing through gate; countersign CLI/UI stub | demo beats 1–5 run end-to-end locally. Delivered Aug 26: beats 1–6 via `scripts/demo_arc.py` (runtime C2PA signing, offline-safe), beats 7–8 via `scripts/countersign.py`; agent-layer tests + negotiation-semantics goldens against real signed media |
 | P4 GCP wiring | Aug 31–Sep 1 | Veo/Imagen real generations signed; deploy agent to Agent Builder; IAM scoping | beat 1 real-cloud; fallback prebaked verified too |
 | P5 Partner layer | Sep 2 | ClickHouse mirror + dashboard (or Parallel negotiator enrichment per Q1) | dashboard live-querying decisions |
 | P6 Negotiator + polish | Sep 3–4 | full arc beats 6–8; inspector view; trailer video script | complete arc on camera |
