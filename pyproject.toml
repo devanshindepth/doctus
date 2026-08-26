@@ -7,12 +7,14 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "pyyaml>=6",
+    "c2pa-python>=0.37",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8",
     "hypothesis>=6",
+    "pillow>=11",
 ]
 
 [build-system]
