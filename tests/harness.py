@@ -97,6 +97,20 @@ def run_case(path: Path) -> list[str]:
         if not record["reason"] or not record["detail"]:
             failures.append(f"{path.name}: deny row {record['decision_id']} lacks explanation")
 
+    # every decision is an audit artifact (CONTEXT invariant 5): action ->
+    # claims evaluated -> outcome, on allows as well as denies.
+    for record in graph._db.execute("SELECT * FROM decisions").fetchall():
+        if record["action_json"] is None or record["claims_evaluated_json"] is None:
+            failures.append(f"{path.name}: row {record['decision_id']} lacks audit payload")
+            continue
+        import json as _json
+        audited = _json.loads(record["claims_evaluated_json"])
+        if audited.get("count") != len(audited.get("claims", [])):
+            failures.append(f"{path.name}: row {record['decision_id']} claim count mismatch")
+        acted = _json.loads(record["action_json"])
+        if acted.get("verb") != record["verb"] or acted.get("asset_id") != record["asset_id"]:
+            failures.append(f"{path.name}: row {record['decision_id']} action mismatch")
+
     # mid-case countersign simulation (demo arc): add claims, retry actions
     for c in case.get("post_claims", []):
         _add_claim(graph, c)

@@ -49,9 +49,14 @@ CREATE TABLE IF NOT EXISTS decisions (
     ts          TEXT NOT NULL,
     asset_id    TEXT NOT NULL,
     verb        TEXT NOT NULL,
+    channel     TEXT,
+    territory   TEXT,
     allowed     INTEGER NOT NULL,
     reason      TEXT,
     detail      TEXT,
+    claims_evaluated_json TEXT,
+    action_json TEXT,
+    negotiation_hint TEXT,
     permissions_version INTEGER
 );
 """
@@ -114,14 +119,38 @@ class RightsGraph:
 
     def record_decision(self, ts: str, asset_id: str, verb: str, allowed: bool,
                         reason: str | None, detail: str | None,
-                        permissions_version: int | None) -> int:
+                        permissions_version: int | None,
+                        channel: str | None = None,
+                        territory: str | None = None,
+                        claims_evaluated_json: str | None = None,
+                        action_json: str | None = None,
+                        negotiation_hint: str | None = None) -> int:
+        """Append one audit row (invariant 5): action -> claims evaluated -> outcome."""
+        import json as _json  # noqa: PLC0415
+
         cur = self._db.execute(
-            "INSERT INTO decisions(ts, asset_id, verb, allowed, reason, detail,"
-            " permissions_version) VALUES (?,?,?,?,?,?,?)",
-            (ts, asset_id, verb, int(allowed), reason, detail, permissions_version),
+            "INSERT INTO decisions(ts, asset_id, verb, channel, territory, allowed,"
+            " reason, detail, claims_evaluated_json, action_json, negotiation_hint,"
+            " permissions_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (ts, asset_id, verb, channel, territory, int(allowed), reason, detail,
+             claims_evaluated_json, action_json, negotiation_hint,
+             permissions_version),
         )
         self._db.commit()
         return int(cur.lastrowid)
+
+    def decisions_for(self, asset_id: str) -> list[dict]:
+        """Read back the audit trail for one asset, oldest first."""
+        rows = self._db.execute(
+            "SELECT * FROM decisions WHERE asset_id=? ORDER BY decision_id",
+            (asset_id,),
+        ).fetchall()
+        return [_decision_row_to_dict(r) for r in rows]
+
+    def all_decisions(self) -> list[dict]:
+        rows = self._db.execute(
+            "SELECT * FROM decisions ORDER BY decision_id").fetchall()
+        return [_decision_row_to_dict(r) for r in rows]
 
     # -- writes ------------------------------------------------------------
     def add_asset(self, record: AssetRecord) -> None:
@@ -207,6 +236,23 @@ def dt_from_iso(value: str) -> __import__("datetime").datetime:  # noqa: F401
     import datetime as _dt  # noqa: PLC0415
 
     return _dt.datetime.fromisoformat(value)
+
+
+_DECISION_COLUMNS = (
+    "decision_id", "ts", "asset_id", "verb", "channel", "territory", "allowed",
+    "reason", "detail", "claims_evaluated_json", "action_json",
+    "negotiation_hint", "permissions_version",
+)
+
+
+def _decision_row_to_dict(r: sqlite3.Row) -> dict:
+    import json as _json  # noqa: PLC0415
+
+    d = {col: r[col] for col in _DECISION_COLUMNS}
+    for key in ("claims_evaluated_json", "action_json"):
+        if d.get(key):
+            d[key] = _json.loads(d[key])
+    return d
 
 
 def _scope_to_dict(scope) -> dict:

@@ -117,3 +117,8 @@ class GateVerdict:
     negotiation_hint: str | None = None
     checked_claims: int = 0
     permissions_version: int | None = None
+    decision_id: int | None = None  # back-reference into the decisions log
+
+
+def _set_decision_id(v: "GateVerdict", decision_id: int) -> None:
+    object.__setattr__(v, "decision_id", decision_id)

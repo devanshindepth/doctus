@@ -10,5 +10,5 @@ def test_all_golden_cases():
 
 
 def test_fixture_count_pinned():
-    # Guard against silently dropping coverage (DESIGN.md targets 8+ cases).
-    assert len(all_cases()) >= 8
+    # Guard against silently dropping coverage (13 cases as of P2).
+    assert len(all_cases()) >= 13

@@ -1,15 +1,19 @@
 """Clearance Gate: deterministic allow/deny around every side-effectful action.
 
-Fail-closed (CONTEXT.md invariant 2). Every deny explains itself (invariant 3)
-and writes a DecisionRecord (invariant 5).
+Fail-closed (CONTEXT.md invariant 2). Every deny explains itself (invariant 3),
+and EVERY decision — allows too — writes a DecisionRecord linking
+action -> claims evaluated -> outcome (invariant 5). The trail IS the product
+for insurers/E&O.
 """
 from __future__ import annotations
 
 import datetime as dt
+import json
 from typing import Any
 
-from doctus.engine.models import (CLAIM_VERBS, ClaimKind, DenyReason, GateVerdict,
-                                  ProposedAction, Verb)
+from doctus.engine.models import (CLAIM_VERBS, ClaimKind, Claim, DenyReason,
+                                  GateVerdict, ProposedAction, Verb,
+                                  _set_decision_id)
 from doctus.engine.permissions_store import ensure_table
 
 
@@ -37,34 +41,38 @@ class ClearanceGate:
         asset = self.graph.get_asset(action.asset_id)
         if asset is None:
             return self._verdict(action, False, DenyReason.MISSING_MANIFEST,
-                                 detail=f"unknown asset '{action.asset_id}'", checked=checked)
+                                 detail=f"unknown asset '{action.asset_id}'",
+                                 checked=checked)
 
         perms_row = self._effective(action.asset_id)
         checked += 1
 
-        # 2. quarantine propagation
-        quarantined = self._quarantined_ingredients(action.asset_id)
+        # 2+3. ONE pass over the ancestor closure feeds both quarantine
+        #      propagation and untrusted-signer shadowing (fail-closed).
+        closure, acyclic = self.graph.ancestor_closure(action.asset_id)
+        claims = self.graph.claims_for(closure)
+        quarantined, untrusted = _closure_taint(closure, claims)
         if action.asset_id in quarantined:
             return self._verdict(action, False, DenyReason.QUARANTINED_INPUT,
                                  detail="asset itself failed provenance verification",
-                                 checked=checked, permissions_version=version)
-
-        # 3. untrusted-signer shadowing: any unverified claim in the closure taints
-        #    the chain (fail-closed); verified-only chains are unaffected.
-        untrusted = self._untrusted_in_closure(action.asset_id)
+                                 checked=checked, permissions_version=version,
+                                 claims=claims)
         if untrusted:
             return self._verdict(action, False, DenyReason.UNTRUSTED_SIGNER,
                                  detail=f"unverified claims present: {sorted(untrusted)}",
-                                 checked=checked, permissions_version=version)
+                                 checked=checked, permissions_version=version,
+                                 claims=claims)
 
         # 4. verb granted at all?
         scopes = perms_row
         scope = scopes.get(action.verb)
         if scope is None or scope.is_empty():
-            reason, hint, kind = self._explain_absent(action.asset_id, action.verb)
+            reason, hint, kind = self._explain_absent(action.asset_id, action.verb,
+                                                      closure, acyclic, claims)
             return self._verdict(action, False, reason, detail=hint,
                                  missing_claim_kind=kind, negotiation_hint=hint,
-                                 checked=checked, permissions_version=version)
+                                 checked=checked, permissions_version=version,
+                                 claims=claims)
 
         # 5. scope coverage — window lapse gets its own diagnosis: "renew", not
         #    "missing". A lapsed grant is more actionable than no grant.
@@ -72,14 +80,17 @@ class ClearanceGate:
             return self._verdict(action, False, DenyReason.EXPIRED_WINDOW,
                                  detail=f"window expired at {scope.valid_until.isoformat()}",
                                  negotiation_hint="renew the license covering this use",
-                                 checked=checked, permissions_version=version)
+                                 checked=checked, permissions_version=version,
+                                 claims=claims)
         ok, detail = scope.covers(channel=action.channel, territory=action.territory)
         if not ok:
             return self._verdict(action, False, DenyReason.SCOPE_EXCEEDED, detail=detail,
                                  negotiation_hint=f"extend scope: {detail}",
-                                 checked=checked, permissions_version=version)
+                                 checked=checked, permissions_version=version,
+                                 claims=claims)
 
-        return self._verdict(action, True, checked=checked, permissions_version=version)
+        return self._verdict(action, True, checked=checked,
+                             permissions_version=version, claims=claims)
 
     # ------------------------------------------------------------ internals
     def _effective(self, asset_id: str) -> dict[Verb, Any]:
@@ -93,46 +104,30 @@ class ClearanceGate:
                _scopes_json(current.scopes), current.constraints_hash)
         return dict(current.scopes)
 
-    def _quarantined_ingredients(self, asset_id: str) -> set[str]:
-        ids, _ = self.graph.ancestor_closure(asset_id)
-        bad: set[str] = set()
-        for aid in ids:
-            claims = self.graph.claims_for([aid])
-            if not claims:
-                continue
-            if all(not c.trusted for c in claims):
-                bad.add(aid)
-        return bad
-
-    def _untrusted_in_closure(self, asset_id: str) -> list[str]:
-        ids, _ = self.graph.ancestor_closure(asset_id)
-        out: list[str] = []
-        for aid in ids:
-            for c in self.graph.claims_for([aid]):
-                if not c.trusted:
-                    out.append(f"{aid}:{c.claim_id}")
-        return out
-
-    def _explain_absent(self, asset_id: str, verb: Verb):
+    def _explain_absent(self, asset_id: str, verb: Verb, closure: list[str],
+                        acyclic: bool, claims: list[Claim]):
         """Name the missing claim type and the fix path (invariant 3).
         Distinguish 'an ingredient has no paperwork' (fix: clear it) from
         'paperwork exists everywhere but doesn't compose' (fix: new instrument)."""
         kinds = {k.value for k, vs in CLAIM_VERBS.items() if verb in vs}
-        ids, acyclic = self.graph.ancestor_closure(asset_id)
         if not acyclic:
             return DenyReason.VERB_NOT_GRANTED, "ingredient cycle detected", None
 
+        by_asset: dict[str, list[Claim]] = {}
+        for c in claims:
+            by_asset.setdefault(c.asset_id, []).append(c)
+
         def covering(aid: str) -> bool:
             return any(c.trusted and c.kind.value in kinds
-                       for c in self.graph.claims_for([aid]))
+                       for c in by_asset.get(aid, ()))
 
-        bare_ingredients = [aid for aid in ids[1:] if not covering(aid)]
+        bare_ingredients = [aid for aid in closure[1:] if not covering(aid)]
         if bare_ingredients:
             return DenyReason.INGREDIENT_UNCLEARED, (
                 f"asset(s) {bare_ingredients} carry no verified claim granting "
                 f"'{verb.value}'; need one of {sorted(kinds)}"), \
                 ClaimKind(sorted(kinds)[0])
-        n_sources = sum(1 for aid in ids if covering(aid))
+        n_sources = sum(1 for aid in closure if covering(aid))
         return DenyReason.VERB_NOT_GRANTED, (
             f"{n_sources} verified claim source(s) present but none grants "
             f"'{verb.value}' for this use; draft a new instrument"), \
@@ -140,7 +135,8 @@ class ClearanceGate:
 
     def _verdict(self, action: ProposedAction, allowed: bool, reason=None, *,
                  detail: str = "", missing_claim_kind=None, negotiation_hint=None,
-                 checked: int = 0, permissions_version: int | None = None) -> GateVerdict:
+                 checked: int = 0, permissions_version: int | None = None,
+                 claims: list[Claim] | None = None) -> GateVerdict:
         verdict = GateVerdict(
             allowed=allowed, asset_id=action.asset_id, verb=action.verb,
             reason=reason if not allowed else None,
@@ -149,12 +145,46 @@ class ClearanceGate:
             negotiation_hint=negotiation_hint if not allowed else None,
             checked_claims=checked, permissions_version=permissions_version,
         )
-        self.graph.record_decision(
-            ts=self._now().isoformat(), asset_id=action.asset_id, verb=action.verb.value,
-            allowed=allowed, reason=verdict.reason.value if verdict.reason else None,
+        claims_evaluated = {
+            "count": len(claims or []),
+            "claims": [
+                {"claim_id": c.claim_id, "kind": c.kind.value,
+                 "asset_id": c.asset_id, "signer": c.signer,
+                 "trusted": bool(c.trusted)}
+                for c in (claims or [])
+            ],
+        }
+        _set_decision_id(verdict, self.graph.record_decision(
+            ts=self._now().isoformat(), asset_id=action.asset_id,
+            verb=action.verb.value, allowed=allowed,
+            reason=verdict.reason.value if verdict.reason else None,
             detail=verdict.detail or None, permissions_version=permissions_version,
-        )
+            channel=action.channel, territory=action.territory,
+            claims_evaluated_json=json.dumps(claims_evaluated, sort_keys=True),
+            action_json=json.dumps({
+                "verb": action.verb.value, "asset_id": action.asset_id,
+                "channel": action.channel, "territory": action.territory,
+                "recipient": action.recipient,
+                "expected_graph_version": action.expected_graph_version,
+            }, sort_keys=True),
+            negotiation_hint=negotiation_hint,
+        ))
         return verdict
+
+
+def _closure_taint(closure: list[str], claims: list[Claim]) -> tuple[set[str], list[str]]:
+    """Single-pass classification of a closure's claims.
+
+    Returns (quarantined_assets, untrusted_refs) where an asset is quarantined
+    iff it has claims and ALL of them are unverified (store-level ingest
+    failure); untrusted_refs lists every individual unverified claim."""
+    by_asset: dict[str, list[Claim]] = {aid: [] for aid in closure}
+    for c in claims:
+        by_asset[c.asset_id].append(c)
+    quarantined = {aid for aid, cs in by_asset.items() if cs and all(not c.trusted for c in cs)}
+    untrusted = [f"{aid}:{c.claim_id}"
+                 for aid in closure for c in by_asset[aid] if not c.trusted]
+    return quarantined, untrusted
 
 
 def _scopes_json(scopes) -> str:  # shared helper

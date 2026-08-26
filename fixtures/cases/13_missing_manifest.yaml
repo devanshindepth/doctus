@@ -1,0 +1,28 @@
+# Unknown / never-ingested asset: the gate must fail closed with MISSING_MANIFEST
+# and still leave a complete audit row (invariant 5) — action -> zero claims -> outcome.
+now: "2026-08-30T12:00:00+00:00"
+assets:
+  - { id: known_original, label: "ingested original" }
+claims:
+  - { claim_id: g13, kind: generation, asset: known_original, signer: veo-key, issued_at: "2026-08-01T00:00:00+00:00" }
+actions:
+  # the asset was never registered in the rights graph at all
+  - name: publish_unknown_asset
+    verb: publish
+    asset: ast_does_not_exist
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: MISSING_MANIFEST
+      detail_contains: "unknown asset 'ast_does_not_exist'"
+  # control: the known asset with no license claims stays VERB_NOT_GRANTED,
+  # proving the two "no paperwork" diagnoses stay distinct
+  - name: publish_known_but_unlicensed
+    verb: publish
+    asset: known_original
+    channel: festival
+    territory: US
+    expect:
+      allowed: false
+      reason: VERB_NOT_GRANTED
