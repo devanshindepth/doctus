@@ -81,7 +81,9 @@ Per asset, the compiled result:
 - SQLite (hackathon) behind a repository interface so ClickHouse can slot in later without touching callers.
 - Tables: `assets`, `claims`, `edges(asset_id, ingredient_id, edge_claims)`, `decisions`.
 - Every mutation bumps `graph_version`; compilers subscribe to version deltas.
-- Manifest ingest path: `c2patool` (or `c2pa-python`) extracts the manifest store → extension assertions parsed into typed claims → signature checked against a trust list → stored. Untrusted signer ⇒ claim stored but flagged `unverified` ⇒ contributes nothing to permissions (fail-closed).
+- Manifest ingest path (implemented, `graph/ingest.py`): `c2pa-python` Reader under the Doctus trust anchor (`verify_cert_anchors` + `trust_anchors`, local trust list off) → `com.doctus.identity|generation|odrl` extension assertions parsed into typed claims (ODRL constraints → Scope) → store-level failure codes decide trust; any failure ⇒ claims stored with `trusted=False` ⇒ QUARANTINED_INPUT / UNTRUSTED_SIGNER shadowing downstream (fail-closed). Ingestion is idempotent (deterministic claim ids).
+- Ingredient edges derive from native C2PA `ingredients[]`: v1 convention is that an ingredient's C2PA `title` mirrors its Doctus asset_id.
+- Prebake: `scripts/prebake_fixtures.py` regenerates the demo PKI (`fixtures/pki`, DEMO-ONLY keys committed on purpose) and re-signs all media in `fixtures/media/` (JPEG+MP4), including a rogue-signed attack fixture asserting wide rights. Manifests pin `claim_version: 1`; signer certs must carry an EKU (emailProtection) or c2pa-rs rejects them. A vendored `c2patool` binary lives in `tools/` locally (gitignored).
 
 ### 3.2 `engine/compiler.py` — Policy Compiler
 

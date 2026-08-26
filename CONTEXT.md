@@ -49,6 +49,8 @@ The LLM may *propose* actions; only valid signed credentials *authorize* them. F
 - Deny records do not yet prune union branches (deny-dominance is v2). Union only merges positive same-source grants; a deny can never widen.
 - Trust model = static signer trust-list flag on claims; real cert-chain validation against C2PA trust lists arrives with c2patool ingest (P1).
 - Gate compiles fresh per check (correctness-first); materialized cache is written for analytics but not yet read back (latency already <5 ms).
+- Verb mapping is claim-KIND-level (Q5 pin): an ODRL instrument mapped to `license` grants {publish, remix, license_out} across its whole scope; per-ODRL-action narrowing inside one instrument is v2.
+- Prebaked manifests pin C2PA `claim_version: 1` — version 2 trips `assertion.action.malformed` on current c2pa-rs (probed 2026-08-26).
 
 ## 5. Non-negotiables (invariants)
 
@@ -78,3 +80,5 @@ The LLM may *propose* actions; only valid signed credentials *authorize* them. F
 ## 8. Session log
 
 - **2026-08-24:** Concept researched, verified, saved (`idea.md`). Project created. Design written (`docs/DESIGN.md`). Next: resolve Q1–Q3, then scaffold engine skeleton.
+- **2026-08-25:** P0 scaffold: engine skeleton (scope algebra, compiler, gate, graph store), 10 goldens, property+latency tests, CI. Q5 pinned in `models.py`.
+- **2026-08-26:** Owner calls recorded (A1–A4 ⇒ D8–D10). **P1 delivered:** `c2pa-python` 0.37 + vendored `c2patool` 0.27 (tools/, gitignored); `graph/ingest.py` maps signed manifests (`com.doctus.identity|generation|odrl`) to typed claims under the Doctus trust anchor; edges derive from native C2PA ingredients (their `title` mirrors the ingredient asset_id); rogue-signed fixture quarantined end-to-end (`signingCredential.untrusted` → QUARANTINED_INPUT / UNTRUSTED_SIGNER shadowing); 6 prebaked media fixtures + demo PKI committed (`fixtures/pki` keys are DEMO-ONLY by design); 12 golden cases; suite 19 green. Signer certs need EKU (emailProtection) or c2pa-rs rejects them.
