@@ -11,6 +11,7 @@ import datetime as dt
 import json
 from typing import Any
 
+from doctus.engine.compiler import _has_generation_only
 from doctus.engine.models import (CLAIM_VERBS, ClaimKind, Claim, DenyReason,
                                   GateVerdict, ProposedAction, Verb,
                                   _set_decision_id)
@@ -118,8 +119,13 @@ class ClearanceGate:
             by_asset.setdefault(c.asset_id, []).append(c)
 
         def covering(aid: str) -> bool:
-            return any(c.trusted and c.kind.value in kinds
-                       for c in by_asset.get(aid, ()))
+            # Mirror the compiler's notion of "covered": a fully-owned
+            # original carrying only a verified generation claim counts
+            # (its wildcard is narrowed by other sources), otherwise any
+            # trusted claim whose kind can grant this verb.
+            return (any(c.trusted and c.kind.value in kinds
+                        for c in by_asset.get(aid, ()))
+                    or _has_generation_only(aid, claims))
 
         bare_ingredients = [aid for aid in closure[1:] if not covering(aid)]
         if bare_ingredients:

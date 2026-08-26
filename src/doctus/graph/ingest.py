@@ -142,7 +142,11 @@ class ManifestIngester:
         trusted = not failures
         sig_info = active.get("signature_info") or {}
         signer = sig_info.get("common_name") or sig_info.get("issuer") or "unknown-signer"
-        issued_at = _parse_time(sig_info.get("time"))
+        # Runtime (agent-signed) media may carry no trusted timestamp when
+        # signed offline without an RFC 3161 server; the store requires a
+        # non-null issued_at, so fall back to ingest time instead of
+        # crashing on - or silently dropping - an otherwise valid claim.
+        issued_at = _parse_time(sig_info.get("time")) or dt.datetime.now(dt.UTC)
 
         identity = self._find_assertion(active, DOCTUS_PREFIX + "identity")
         manifest_label = active.get("label", "")
