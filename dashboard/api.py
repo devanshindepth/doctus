@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from doctus.inspector.generator import generate_inspector_html
 from doctus.server.studio_server import StudioEngine
+from dashboard.uploads import router as uploads_router
 
 # ─────────────────────────────────────────────────────────── Global Engine State
 _engine: StudioEngine | None = None
@@ -58,6 +59,8 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+app.include_router(uploads_router)
 
 # CORS configuration
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
