@@ -1,540 +1,67 @@
-import React, { useState } from 'react'
-import {
-  AlertOctagon,
-  Ban,
-  BarChart2,
-  Check,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  ExternalLink,
-  Eye,
-  FileCheck,
-  Filter,
-  Layers,
-  PlaneTakeoff,
-  Play,
-  RotateCcw,
-  ShieldAlert,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-} from 'lucide-react'
-import {
-  StudioSummary,
-  DecisionRecord,
-  ProvenanceGraphData,
-  PreflightVerdict,
-} from '@/types'
-import { api } from '@/lib/api'
+import { useState } from 'react'
+import { ArrowDownToLine, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3, FileCheck2, Film, FolderOpen, Globe2, Image, Layers3, Music2, Play, Plus, Search, ShieldCheck, Sparkles, X, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
+import type { StudioSummary, DecisionRecord, ProvenanceGraphData, PreflightVerdict } from '@/types'
+import type { TabType } from '@/components/layout/Sidebar'
+import { api, assetName, readableJson, reasonLabel } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-
-interface OverviewPageProps {
-  summary: StudioSummary | null
-  decisions: DecisionRecord[]
-  graph: ProvenanceGraphData | null
-  onRefresh: () => void
-  onNavigateTab: (tab: any) => void
-}
-
-export const OverviewPage: React.FC<OverviewPageProps> = ({
-  summary,
-  decisions,
-  graph,
-  onRefresh,
-  onNavigateTab,
-}) => {
-  // Preflight form state
-  const [selectedAsset, setSelectedAsset] = useState<string>('')
-  const [selectedChannel, setSelectedChannel] = useState<string>('social')
-  const [selectedTerritory, setSelectedTerritory] = useState<string>('US')
-  const [isCheckingPreflight, setIsCheckingPreflight] = useState<boolean>(false)
-  const [preflightVerdict, setPreflightVerdict] = useState<PreflightVerdict | null>(null)
-
-  // Decision log filter & search
-  const [filterVerdict, setFilterVerdict] = useState<'all' | 'allowed' | 'denied'>('all')
-
-  // Trace Modal state
-  const [selectedDecisionTrace, setSelectedDecisionTrace] = useState<DecisionRecord | null>(null)
-
-  // Set default asset if not selected yet
-  const assetOptions = graph?.nodes || []
-  const activeAssetId = selectedAsset || (assetOptions[0]?.id || 'ast_talent_frame_v1')
-
-  const handleRunPreflight = async () => {
-    try {
-      setIsCheckingPreflight(true)
-      const verdict = await api.runPreflight({
-        asset_id: activeAssetId,
-        verb: 'publish',
-        channel: selectedChannel,
-        territory: selectedTerritory,
-      })
-      setPreflightVerdict(verdict)
-      if (verdict.allowed) {
-        toast.success(`Clearance CONFIRMED for ${activeAssetId}`, {
-          description: `Allowed for ${selectedChannel} in ${selectedTerritory}`,
-        })
-      } else {
-        toast.error(`Clearance BLOCKED: ${verdict.reason}`, {
-          description: verdict.detail || 'Missing required C2PA claim or scope',
-        })
-      }
-      onRefresh()
-    } catch (err: any) {
-      toast.error(`Preflight failed: ${err.message}`)
-    } finally {
-      setIsCheckingPreflight(false)
-    }
+interface Props { summary: StudioSummary | null; decisions: DecisionRecord[]; graph: ProvenanceGraphData | null; onRefresh: () => void; onNavigateTab: (tab: TabType) => void; examplesOnly?: boolean }
+const examples = [
+  { asset: 'ast_talent_frame_v1', channel: 'social', title: 'A social-ready portrait', text: 'Check a character portrait for a social media release.', label: 'Social media', expected: 'Explore likeness consent', icon: Image, tone: 'lavender' },
+  { asset: 'ast_composite_v1', channel: 'festival', title: 'From edit to festival', text: 'See how a film and its music are checked together.', label: 'Film festival', expected: 'Explore combined rights', icon: Film, tone: 'peach' },
+  { asset: 'ast_music_bed_v1', channel: 'trailer', title: 'The right track. The wrong rights?', text: 'Find out why festival music may not cover a trailer.', label: 'Trailer release', expected: 'Explore a blocked check', icon: Music2, tone: 'mint' },
+]
+export function OverviewPage({ summary, decisions, graph, onRefresh, onNavigateTab, examplesOnly = false }: Props) {
+  const [checkingOpen, setCheckingOpen] = useState(false)
+  const [asset, setAsset] = useState('')
+  const [channel, setChannel] = useState('social')
+  const [territory, setTerritory] = useState('US')
+  const [checking, setChecking] = useState(false)
+  const [verdict, setVerdict] = useState<PreflightVerdict | null>(null)
+  const [checkError, setCheckError] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [trace, setTrace] = useState<DecisionRecord | null>(null)
+  const [video, setVideo] = useState(false)
+  const [allActivity, setAllActivity] = useState(false)
+  const nodes = graph?.nodes || []
+  const selectedAsset = asset || nodes[0]?.id || ''
+  const openCheck = (example?: typeof examples[number]) => {
+    setAsset(example?.asset || nodes[0]?.id || ''); setChannel(example?.channel || 'social'); setTerritory('US'); setVerdict(null); setCheckError(''); setCheckingOpen(true)
   }
-
-  const handleNegotiateDraft = async () => {
-    try {
-      toast.info('Instructing Negotiator Agent to draft ODRL extension...')
-      await api.runDemoBeat(6)
-      toast.success('ODRL Draft instrument created! Redirecting to Legal Queue...')
-      onRefresh()
-      onNavigateTab('countersign')
-    } catch (err: any) {
-      toast.error(`Negotiation failed: ${err.message}`)
-    }
+  const runCheck = async () => {
+    setChecking(true); setCheckError(''); setVerdict(null)
+    try { const result = await api.runPreflight({ asset_id: selectedAsset, channel, territory }); setVerdict(result); onRefresh() }
+    catch { setCheckError('We couldn’t complete this check. Please try again. No clearance has been confirmed.') }
+    finally { setChecking(false) }
   }
-
-  // Filter decisions
-  const filteredDecisions = decisions.filter((d) => {
-    if (filterVerdict === 'allowed') return d.allowed
-    if (filterVerdict === 'denied') return !d.allowed
-    return true
-  })
-
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
-      {/* Top Row: Video Player + Clearance KPIs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Media Hero Player */}
-        <div className="lg:col-span-2 glass-panel rounded-2xl border border-dark-700/80 overflow-hidden shadow-2xl relative flex flex-col bg-black">
-          <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black/70 backdrop-blur-md rounded-md border border-white/10 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-crimson-500 animate-pulse" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
-              Cut 4 — Final Production Render
-            </span>
-          </div>
-
-          <div className="aspect-video w-full bg-dark-950 relative flex items-center justify-center">
-            <video
-              className="w-full h-full object-contain"
-              controls
-              playsInline
-              poster="/media/ast_composite_v1.jpg"
-            >
-              <source src="/media/ast_video_shot_v1.mp4" type="video/mp4" />
-              Your browser does not support HTML5 video streaming.
-            </video>
-          </div>
-
-          <div className="px-5 py-3 bg-dark-900/90 border-t border-dark-800 flex items-center justify-between text-xs text-slate-400">
-            <span className="flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-emerald-400" />
-              <span>Manifest Status: <strong className="text-slate-200">C2PA Embedded &amp; Signed</strong></span>
-            </span>
-            <span className="font-mono text-[11px] text-slate-500">SHA-256 Verified Closure</span>
-          </div>
-        </div>
-
-        {/* Clearance KPIs Grid */}
-        <Card className="flex flex-col justify-between">
-          <div>
-            <CardHeader className="mb-3">
-              <CardTitle>
-                <BarChart2 className="w-4 h-4 text-crimson-500" />
-                <span>Executive Clearance KPIs</span>
-              </CardTitle>
-              <span className="text-[10px] uppercase font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                Deterministic
-              </span>
-            </CardHeader>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-dark-900/80 p-3.5 rounded-xl border border-dark-750">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                  Active Assets
-                </span>
-                <p className="text-2xl font-bold text-white font-mono">
-                  {summary ? summary.studio_assets : '--'}
-                </p>
-                <span className="text-[10px] text-slate-500">Registered media DAG</span>
-              </div>
-
-              <div className="bg-dark-900/80 p-3.5 rounded-xl border border-dark-750">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                  C2PA Claims
-                </span>
-                <p className="text-2xl font-bold text-white font-mono">
-                  {summary ? summary.verified_claims : '--'}
-                </p>
-                <span className="text-[10px] text-emerald-400">100% Cryptographic</span>
-              </div>
-
-              <div className="bg-dark-900/80 p-3.5 rounded-xl border border-dark-750">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                  Clearance Rate
-                </span>
-                <p className="text-2xl font-bold text-emerald-400 font-mono">
-                  {summary ? `${Math.round(summary.clearance_rate * 100)}%` : '--'}
-                </p>
-                <span className="text-[10px] text-slate-500">Across all gates</span>
-              </div>
-
-              <div className="bg-dark-900/80 p-3.5 rounded-xl border border-dark-750">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                  Legal Signatures
-                </span>
-                <p className="text-2xl font-bold text-amber-400 font-mono">
-                  {summary ? summary.countersign_actions : '--'}
-                </p>
-                <span className="text-[10px] text-slate-500">Human countersigns</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 p-3 bg-dark-900/60 rounded-xl border border-dark-750 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Total Decisions Processed</span>
-            <div className="flex items-center gap-2">
-              <span className="text-emerald-400 font-bold font-mono">
-                {summary ? `${summary.allows} Allowed` : '--'}
-              </span>
-              <span className="text-slate-600">/</span>
-              <span className="text-crimson-400 font-bold font-mono">
-                {summary ? `${summary.denies} Blocked` : '--'}
-              </span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Middle Row: Distribution Preflight Simulator + Live Decision Log */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Preflight Simulator */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle>
-              <PlaneTakeoff className="w-4 h-4 text-crimson-500" />
-              <span>Distribution Preflight Check</span>
-            </CardTitle>
-            <Badge variant="neutral">Simulator</Badge>
-          </CardHeader>
-
-          <div className="space-y-4 flex-1 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Target Asset
-                </label>
-                <select
-                  value={activeAssetId}
-                  onChange={(e) => {
-                    setSelectedAsset(e.target.value)
-                    setPreflightVerdict(null)
-                  }}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg p-2.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-crimson-500 transition"
-                >
-                  {assetOptions.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.id} — {n.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Channel / Platform
-                </label>
-                <select
-                  value={selectedChannel}
-                  onChange={(e) => {
-                    setSelectedChannel(e.target.value)
-                    setPreflightVerdict(null)
-                  }}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg p-2.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-crimson-500 transition"
-                >
-                  <option value="social">Social Media (YouTube, TikTok, X)</option>
-                  <option value="festival">Film Festival Screening</option>
-                  <option value="trailer">Promotional Trailer Broadcast</option>
-                  <option value="theatrical">Global Theatrical Release</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Territory
-                </label>
-                <select
-                  value={selectedTerritory}
-                  onChange={(e) => {
-                    setSelectedTerritory(e.target.value)
-                    setPreflightVerdict(null)
-                  }}
-                  className="w-full bg-dark-900 border border-dark-700 rounded-lg p-2.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-crimson-500 transition"
-                >
-                  <option value="US">United States (US)</option>
-                  <option value="EU">European Union (EU)</option>
-                  <option value="Global">Worldwide (Global)</option>
-                </select>
-              </div>
-
-              <Button
-                variant="primary"
-                onClick={handleRunPreflight}
-                isLoading={isCheckingPreflight}
-                className="w-full py-2.5 mt-2"
-              >
-                <span>Run Clearance Simulation</span>
-              </Button>
-            </div>
-
-            {/* Preflight Result Box */}
-            {preflightVerdict && (
-              <div className="mt-4 animate-fade-in">
-                {preflightVerdict.allowed ? (
-                  <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/50 flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 mt-0.5 shrink-0">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                        Clearance Confirmed — Allowed
-                      </h4>
-                      <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                        All ancestor C2PA claims and ODRL scopes cover distribution on{' '}
-                        <strong>{selectedChannel}</strong> in <strong>{selectedTerritory}</strong>.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-crimson-950/40 border border-crimson-500/50 flex flex-col gap-3 shadow-glow-crimson">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg bg-crimson-500/20 text-crimson-400 mt-0.5 shrink-0">
-                        <AlertOctagon className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-bold text-crimson-400 uppercase tracking-wider">
-                          Gate Blocked — {preflightVerdict.reason}
-                        </h4>
-                        <p className="text-xs text-slate-200 mt-1 font-mono break-words">
-                          {preflightVerdict.detail}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-crimson-900/60">
-                      <p className="text-[11px] text-amber-300/90 mb-2">
-                        <strong>Fix Path:</strong>{' '}
-                        {preflightVerdict.negotiation_hint ||
-                          'Requires human-countersigned ODRL scope extension.'}
-                      </p>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleNegotiateDraft}
-                        className="w-full flex items-center justify-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Draft Extension with Negotiator</span>
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Live Clearance Engine Log */}
-        <Card className="lg:col-span-2 flex flex-col h-[520px]">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <CardTitle>
-                <Zap className="w-4 h-4 text-crimson-500" />
-                <span>Live Clearance Engine Decision Audit Log</span>
-              </CardTitle>
-              <span className="text-xs text-slate-500 font-mono">({decisions.length} records)</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setFilterVerdict('all')}
-                className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
-                  filterVerdict === 'all'
-                    ? 'bg-dark-750 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterVerdict('allowed')}
-                className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
-                  filterVerdict === 'allowed'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Allowed
-              </button>
-              <button
-                onClick={() => setFilterVerdict('denied')}
-                className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
-                  filterVerdict === 'denied'
-                    ? 'bg-crimson-500/20 text-crimson-400 border border-crimson-500/30'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Denied
-              </button>
-            </div>
-          </CardHeader>
-
-          <div className="flex-1 overflow-auto rounded-lg border border-dark-800 bg-dark-900/60">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-dark-950 text-slate-400 sticky top-0 z-10 border-b border-dark-800">
-                <tr>
-                  <th className="py-2.5 px-4 font-semibold">ID</th>
-                  <th className="py-2.5 px-4 font-semibold">Timestamp</th>
-                  <th className="py-2.5 px-4 font-semibold">Action &amp; Target</th>
-                  <th className="py-2.5 px-4 font-semibold">Verdict</th>
-                  <th className="py-2.5 px-4 font-semibold">Reason / Detail</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Audit Trace</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-800 font-mono">
-                {filteredDecisions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-12 text-slate-500 font-sans">
-                      No clearance checks recorded yet matching filter. Run a preflight or demo beat.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDecisions
-                    .slice()
-                    .reverse()
-                    .map((dec) => (
-                      <tr
-                        key={dec.decision_id}
-                        className={`transition ${
-                          dec.allowed
-                            ? 'hover:bg-dark-850'
-                            : 'hover:bg-crimson-950/20 bg-crimson-950/10'
-                        }`}
-                      >
-                        <td className="py-3 px-4 text-slate-400 font-semibold">
-                          #{dec.decision_id}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 text-[11px]">
-                          {dec.ts ? dec.ts.substring(11, 19) : '--'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-200 font-semibold">
-                          {dec.verb} {dec.asset_id}{' '}
-                          {dec.channel && (
-                            <span className="text-slate-400 text-[11px] font-normal">
-                              ({dec.channel}/{dec.territory || 'US'})
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge variant={dec.allowed ? 'success' : 'danger'}>
-                            {dec.allowed ? (
-                              <>
-                                <Check className="w-3 h-3" />
-                                <span>ALLOWED</span>
-                              </>
-                            ) : (
-                              <>
-                                <Ban className="w-3 h-3" />
-                                <span>DENIED</span>
-                              </>
-                            )}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 max-w-xs truncate text-slate-300 font-sans">
-                          {dec.allowed ? (
-                            <span className="text-slate-400">Full Ancestor Clearance Verified</span>
-                          ) : (
-                            <span>
-                              <strong className="text-crimson-400 font-mono">{dec.reason}</strong>:{' '}
-                              {dec.detail}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setSelectedDecisionTrace(dec)}
-                            className="font-sans"
-                          >
-                            <Eye className="w-3 h-3 text-slate-400" />
-                            <span>Closure Trace</span>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-
-      {/* Decision Closure Trace Modal */}
-      {selectedDecisionTrace && (
-        <Modal
-          isOpen={true}
-          onClose={() => setSelectedDecisionTrace(null)}
-          title={`Closure Trace: Decision #${selectedDecisionTrace.decision_id}`}
-        >
-          <div className="space-y-4 text-xs font-mono">
-            <div className="p-3 bg-dark-950 rounded-xl border border-dark-800">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Proposed Action
-              </span>
-              <pre className="text-slate-200 text-xs overflow-x-auto">
-                {selectedDecisionTrace.action_json
-                  ? JSON.stringify(JSON.parse(selectedDecisionTrace.action_json), null, 2)
-                  : `${selectedDecisionTrace.verb} ${selectedDecisionTrace.asset_id} (${selectedDecisionTrace.channel || 'all'})`}
-              </pre>
-            </div>
-
-            <div className="p-3 bg-dark-950 rounded-xl border border-dark-800">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                Evaluated Claims Closure (Cryptographic Ancestor Proof)
-              </span>
-              {selectedDecisionTrace.claims_evaluated_json ? (
-                <pre className="text-slate-300 text-[11px] overflow-x-auto max-h-80">
-                  {JSON.stringify(
-                    JSON.parse(selectedDecisionTrace.claims_evaluated_json),
-                    null,
-                    2
-                  )}
-                </pre>
-              ) : (
-                <p className="text-slate-500 font-sans">No evaluated claims stored.</p>
-              )}
-            </div>
-
-            <div className="p-3 bg-dark-950 rounded-xl border border-dark-800 flex items-center justify-between">
-              <span className="text-slate-400">Verdict Result:</span>
-              <Badge variant={selectedDecisionTrace.allowed ? 'success' : 'danger'}>
-                {selectedDecisionTrace.allowed ? 'ALLOWED (Pass)' : `DENIED (${selectedDecisionTrace.reason})`}
-              </Badge>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
-  )
+  const filtered = decisions.filter(d => (filter === 'all' || (filter === 'allowed' ? d.allowed : !d.allowed)) && `${assetName(d.asset_id)} ${d.asset_id} ${d.channel || ''}`.toLowerCase().includes(search.toLowerCase())).slice().reverse()
+  const stats = [
+    { label: 'Assets in your workspace', value: summary?.studio_assets ?? '—', detail: 'Ready to explore', icon: FolderOpen, tone: 'mint', action: 'provenance' },
+    { label: 'Clearance pass rate', value: decisions.length ? `${Math.round((summary?.clearance_rate || 0) * 100)}%` : '—', detail: decisions.length ? `${summary?.allows || 0} of ${decisions.length} checks cleared` : 'Run your first check', icon: ShieldCheck, tone: 'mint', action: 'analytics' },
+    { label: 'Awaiting approval', value: summary?.pending_approvals ?? '—', detail: summary?.pending_approvals ? 'Needs your attention' : 'You’re all caught up', icon: Clock3, tone: 'peach', action: 'countersign' },
+    { label: 'Verified rights records', value: summary?.verified_claims ?? '—', detail: 'Signed content credentials', icon: FileCheck2, tone: 'lavender', action: 'provenance' },
+  ]
+  const gallery = <section className="examples-section"><div className="section-heading"><div><h2>{examplesOnly ? 'Choose a starting point' : 'A little inspiration to get started'}</h2><p>Real scenarios. Sample assets. No upload needed.</p></div>{!examplesOnly && <button className="text-link" onClick={() => onNavigateTab('examples')}>Explore examples <ArrowRight size={15} /></button>}</div><div className="example-grid">{examples.map((ex, i) => <button className={`example-card ${ex.tone}`} key={ex.asset} onClick={() => openCheck(ex)} disabled={!nodes.some(n => n.id === ex.asset)}><div className="example-top"><span className={`example-icon ${ex.tone}`}><ex.icon size={22} /></span><span className="example-category">{ex.label}</span><ArrowUpRight size={17} /></div><h3>{ex.title}</h3><p>{ex.text}</p><div className="example-bottom"><span>{ex.expected}</span><span className="example-number">0{i + 1}</span></div></button>)}</div></section>
+  return <div className="page-stack">
+    <div className="page-heading"><div><div className="heading-kicker">YOUR CLEARANCE WORKSPACE <span className="sample-pill">Sample data</span></div><h1>{examplesOnly ? 'Explore what’s possible.' : 'A clear view. A confident next step.'}</h1><p>{examplesOnly ? 'Try a guided scenario and see your rights checks in action.' : 'Your assets, permissions, and peace of mind. All in one place.'}</p></div><div className="heading-actions"><Button variant="secondary" onClick={() => onNavigateTab('certificates')}><ArrowDownToLine size={16} />Export report</Button><Button onClick={() => openCheck()}><Plus size={17} />New clearance check</Button></div></div>
+    {!examplesOnly && <>
+      <div className="stats-grid">{stats.map(stat => <button className="stat-card" key={stat.label} onClick={() => onNavigateTab(stat.action as TabType)}><div className="stat-top"><span>{stat.label}</span><span className={`stat-icon ${stat.tone}`}><stat.icon size={18} /></span></div><div className="stat-value">{stat.value}<svg className={`mini-spark ${stat.tone}`} viewBox="0 0 88 32" aria-hidden="true"><path d="M2 26 L14 24 L25 26 L36 16 L46 20 L57 12 L68 15 L85 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></div><div className="stat-detail">{stat.label === 'Awaiting approval' && !summary?.pending_approvals ? <CheckCircle2 size={13} /> : <span className={`tiny-dot ${stat.tone}`} />}{stat.detail}<ChevronRight size={14} /></div></button>)}</div>
+      <section className="welcome-banner"><div className="welcome-copy"><span className="welcome-eyebrow"><Sparkles size={14} /> CREATE FREELY. PUBLISH CONFIDENTLY.</span><h2>Great work deserves<br />a clear path to the world.</h2><p>Know what you can use, where you can share it,<br className="desktop-br" /> and what needs a second look. Before you hit publish.</p><div className="welcome-actions"><Button onClick={() => openCheck()}>Check an asset <ArrowRight size={16} /></Button><button onClick={() => onNavigateTab('examples')} className="welcome-link"><Play size={13} />Try an example</button></div></div><div className="rights-illustration" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="illustration-line line-one" /><div className="illustration-line line-two" /><div className="source-chip source-video"><span><Film size={21} /></span><div><strong>Your video</strong><small>Content credentials</small></div><CheckCircle2 size={15} /></div><div className="source-chip source-audio"><span><Music2 size={21} /></span><div><strong>Your soundtrack</strong><small>Usage permissions</small></div><CheckCircle2 size={15} /></div><div className="clearance-orb"><ShieldCheck size={48} strokeWidth={1.3} /></div><div className="clearance-chip"><span className="check-disc"><Check size={13} /></span>Clarity for every creation</div><span className="illustration-spark spark-one">+</span><span className="illustration-spark spark-two">+</span></div></section>
+      <div className="overview-columns"><section className="card activity-card"><div className="card-header"><div><h2>Recent clearance activity <span className="count-label">{decisions.length}</span></h2><p>A little more certainty with every check.</p></div><button className="text-link" onClick={() => setAllActivity(!allActivity)}>{allActivity ? 'Show recent' : 'View all'} <ArrowUpRight size={15} /></button></div><div className="activity-toolbar"><div className="segmented" aria-label="Filter clearance activity">{[['all','All checks'],['allowed','Cleared'],['denied','Needs attention']].map(([value,label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} className={filter === value ? 'selected' : ''}>{label}</button>)}</div><label className="search-box"><Search size={16} /><input aria-label="Search clearance activity" placeholder="Search assets…" value={search} onChange={e => setSearch(e.target.value)} /></label></div><div className="table-scroll"><table className="activity-table"><thead><tr><th>Asset</th><th>Destination</th><th>Status</th><th><span className="sr-only">Details</span></th></tr></thead><tbody>{filtered.slice(0, allActivity ? 100 : 4).map(d => <tr key={d.decision_id}><td><div className="asset-cell"><span className={`file-icon ${d.asset_id.includes('music') ? 'peach' : 'lavender'}`}>{d.asset_id.includes('music') ? <Music2 size={18} /> : <Film size={18} />}</span><div><strong>{assetName(d.asset_id)}</strong><small>{new Date(d.ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></div></div></td><td><span className="capitalize">{d.channel || d.verb}</span><small className="table-sub">{d.territory || 'Not specified'}</small></td><td><Badge variant={d.allowed ? 'success' : 'warning'}><span className="status-dot" />{d.allowed ? 'Cleared' : 'Needs attention'}</Badge></td><td><button className="icon-button" aria-label={`View decision ${d.decision_id}`} onClick={() => setTrace(d)}><ChevronRight size={17} /></button></td></tr>)}</tbody></table>{!filtered.length && <div className="empty-state"><ShieldCheck size={30} /><h3>{decisions.length ? 'No checks match your search' : 'Your next step starts here'}</h3><p>{decisions.length ? 'Try another asset name or choose a different status.' : 'Run a sample check to see a clear result and its supporting evidence.'}</p><Button variant="secondary" size="sm" onClick={() => decisions.length ? (setFilter('all'), setSearch('')) : openCheck()}>{decisions.length ? 'Clear filters' : 'Run your first check'}<ArrowRight size={14} /></Button></div>}</div><div className="activity-footer"><span><span className="tiny-dot mint" />{filtered.length ? `Showing ${Math.min(filtered.length, allActivity ? 100 : 4)} of ${filtered.length} checks` : 'Your checks will appear here'}</span><span>Updates automatically</span></div></section>
+      <aside className="card project-card"><div className="card-header"><h2>In the spotlight</h2><span className="sample-pill">Sample project</span></div><button className="project-visual" onClick={() => setVideo(true)} aria-label="Play The Last Echo sample film"><img src="/media/ast_composite_v1.jpg" alt="Cinematic nighttime city scene from The Last Echo" /><span className="project-visual-shade" /><span className="project-film-tag"><Film size={12} />AI SHORT FILM</span><span className="play-circle"><Play size={21} fill="currentColor" /></span><span className="project-visual-caption">THE LAST ECHO<span>A study in light. A story in motion.</span></span></button><div className="project-body"><div><h3>The Last Echo</h3><span className="project-category">AI-assisted short film · Sample production</span></div><div className="project-facts"><span><Layers3 size={14} />{nodes.length} assets</span><span><Globe2 size={14} />Rights-aware production</span></div><button className="project-link" onClick={() => onNavigateTab('provenance')}>Explore project assets <ArrowRight size={16} /></button></div></aside></div>
+    </>}
+    {gallery}
+    {examplesOnly && <div className="notice"><CircleHelp size={20} /><div><strong>Practice without publishing</strong><p>Each example fills in a clearance check for you. Review the asset and destination, then run it. Results reflect the current sample rights, which can change after an approval. Checks create audit records but never publish media.</p></div></div>}
+    <Modal isOpen={checkingOpen} onClose={() => { if (!checking) setCheckingOpen(false) }} title="Can I publish this asset?">
+      <p className="modal-intro">Tell us what you’d like to share. We’ll check the recorded permissions and explain your next step.</p><div className="inline-sample"><Sparkles size={15} /> Sample workspace · No media will be published</div>
+      <form onSubmit={e => { e.preventDefault(); void runCheck() }}><fieldset disabled={checking} className="check-fields"><label htmlFor="check-asset">Which asset?<select id="check-asset" value={selectedAsset} onChange={e => { setAsset(e.target.value); setVerdict(null) }} required>{nodes.map(n => <option value={n.id} key={n.id}>{assetName(n.id)}</option>)}</select></label><div className="form-row"><label htmlFor="check-channel">Where will it be shared?<select id="check-channel" value={channel} onChange={e => { setChannel(e.target.value); setVerdict(null) }}><option value="social">Social media</option><option value="festival">Film festival</option><option value="trailer">Promotional trailer</option><option value="theatrical">Theatrical release</option></select></label><label htmlFor="check-territory">In which region?<select id="check-territory" value={territory} onChange={e => { setTerritory(e.target.value); setVerdict(null) }}><option value="US">United States</option><option value="EU">European Union</option><option value="Global">Worldwide</option></select></label></div><Button type="submit" isLoading={checking} disabled={!selectedAsset} className="full-width"><ShieldCheck size={17} />{checking ? 'Checking permissions…' : 'Check clearance'}</Button></fieldset></form>
+      {checkError && <div className="result result-error" role="alert"><AlertCircle size={20} /><p>{checkError}</p></div>}
+      {verdict && <div className={`result ${verdict.allowed ? 'result-success' : 'result-warning'}`} role="status">{verdict.allowed ? <ShieldCheck size={25} /> : <AlertCircle size={25} />}<div><h3>{verdict.allowed ? 'You’re cleared for this use' : 'This use needs a closer look'}</h3><p>{verdict.allowed ? `The recorded permissions cover ${channel} distribution in ${territory}. This result applies only to the use you checked.` : `${reasonLabel(verdict.reason)}. The recorded rights don’t currently support this use. Nothing has been published.`}</p>{!verdict.allowed && <><p>{verdict.negotiation_hint || 'Ask your rights team to review the missing permission before publishing.'}</p><Button variant="secondary" size="sm" onClick={() => { setCheckingOpen(false); onNavigateTab('countersign') }}>Review approvals <ArrowRight size={14} /></Button></>}<details><summary>View supporting details</summary><p>{verdict.detail || 'All required recorded permissions passed this evaluation.'}</p>{verdict.failed_ingredient && <p>Asset to review: {assetName(verdict.failed_ingredient)}</p>}<code>{verdict.reason || 'ALLOWED'}</code></details></div></div>}
+    </Modal>
+    <Modal isOpen={!!trace} onClose={() => setTrace(null)} title="Clearance check details">{trace && <div className="page-stack"><div className="detail-summary"><Badge variant={trace.allowed ? 'success' : 'warning'}>{trace.allowed ? 'Cleared for this use' : 'Needs attention'}</Badge><h3>{assetName(trace.asset_id)}</h3><p>{trace.channel || trace.verb} · {trace.territory || 'No region recorded'} · Decision #{trace.decision_id}</p><p>{trace.detail || 'The recorded permissions cover this specific use.'}</p></div><details><summary>Action details</summary><pre>{readableJson(trace.action_json)}</pre></details><details><summary>Supporting rights records</summary><pre>{readableJson(trace.claims_evaluated_json)}</pre></details></div>}</Modal>
+    <Modal isOpen={video} onClose={() => setVideo(false)} title="The Last Echo · Sample film">{video && <><video controls autoPlay playsInline className="sample-video" poster="/media/ast_composite_v1.jpg" onError={() => toast.error('The video could not load. Please try again.')}><source src="/media/ast_video_shot_v1.mp4" type="video/mp4" /><track kind="captions" />Your browser does not support video playback.</video><p className="muted video-note">Sample AI-generated footage. Playback does not imply clearance for distribution.</p></>}</Modal>
+  </div>
 }
