@@ -154,6 +154,33 @@ The deny payload always carries: failed claim reference (or the missing-claim ty
 - **If Parallel:** negotiator uses Search/FindAll/Task MCP to research rights holders + comparable license benchmarks and attach citations to the draft instrument.
 - Either way the core never depends on partner availability — partner layer enriches; engine stands alone (demo resilience).
 
+### 3.6 Cloud wiring (`cloud/` — implemented P4)
+
+- `cloud/config.py`: `CloudConfig.from_env` resolves `DOCTUS_VEO_BACKEND`
+  (`prebaked` default per D9 | `cloud`) plus GOOGLE_CLOUD_PROJECT/LOCATION;
+  an unknown backend, or `cloud` without a concrete project, refuses loudly
+  (fail-closed configuration, invariant 2 applied to ops).
+- `cloud/veo.py`: `ShotBackend`s — `PrebakedShotBackend` renders placeholder
+  frames (pixel content is authorization-irrelevant; the gate reads
+  manifests), `CloudVeoShotBackend` calls Vertex AI Veo via google-genai
+  (`generate_videos` → poll LRO → bytes/URI download). Both feed the SAME
+  runtime-signing → ingest → compile → gate path: swapping the shot source
+  never touches authorization.
+- `cloud/studio.py`: `CloudStudio` assembles backend + ProductionAgent +
+  ManifestIngester + gate + Negotiator + CountersignLedger behind one
+  verdict-as-data surface (`publish` returns dicts, never raises on deny);
+  `propose_draft` queues agent-drafted instruments for human approval.
+- `cloud/tools.py`: the ADK tool surface — `make_tools` binds five functions
+  (generate_shot, composite_shot, publish_video, check_permission,
+  propose_license_extension); they are the ONLY model-callable actions. Deny
+  explanations reach the model verbatim as tool results; the negotiation tool
+  can propose but structurally cannot approve (invariant 6 by surface shape).
+- `deploy/adk_app/agent.py`: module-level `root_agent` for `adk deploy
+  agent_engine`; `deploy/README.md` carries the procedure, requirements pin
+  `google-cloud-aiplatform[agent_engines,adk]`, and `deploy/iam.md` scopes a
+  dedicated service account (aiplatform.user + staging-bucket objectAdmin
+  only — approval stays human, outside GCP IAM).
+
 ## 4. Demo pipeline (the fixed arc, wired)
 
 | # | Beat | Component exercised |
@@ -184,10 +211,10 @@ Fallback if Veo quota fails (Q2): pre-generated clips with real c2patool-signed 
 | P1 Graph + Compiler | Aug 26–27 | claims ingest (c2patool), compiler, 12 goldens | invariant tests pass; byte-stable output |
 | P2 Gate + decisions | Aug 28 | gate w/ full taxonomy, decision log | <5ms verdicts; all deny reasons covered by cases. Delivered Aug 26: audit rows carry action→claims→outcome, 13 goldens, report CLI |
 | P3 Agents | Aug 29–30 | production agent (ADK) routing through gate; countersign CLI/UI stub | demo beats 1–5 run end-to-end locally. Delivered Aug 26: beats 1–6 via `scripts/demo_arc.py` (runtime C2PA signing, offline-safe), beats 7–8 via `scripts/countersign.py`; agent-layer tests + negotiation-semantics goldens against real signed media |
-| P4 GCP wiring | Aug 31–Sep 1 | Veo/Imagen real generations signed; deploy agent to Agent Builder; IAM scoping | beat 1 real-cloud; fallback prebaked verified too |
-| P5 Partner layer | Sep 2 | ClickHouse mirror + dashboard (or Parallel negotiator enrichment per Q1) | dashboard live-querying decisions |
-| P6 Negotiator + polish | Sep 3–4 | full arc beats 6–8; inspector view; trailer video script | complete arc on camera |
-| Buffer / submission | Sep 5–6 | Devpost form, license file visible, backup video | submitted ≥24h early |
+| P4 GCP wiring | Aug 31–Sep 1 | Veo/Imagen real generations signed; deploy agent to Agent Builder; IAM scoping | beat 1 real-cloud; fallback prebaked verified too. Delivered Aug 26: `cloud/` package (config fail-closed, Veo backends, CloudStudio, ADK tool surface) + `deploy/` scaffold (Agent Engine root_agent, README, IAM); beats 1–8 verified through the wired layer on the D9 fallback — real-Veo leg awaits GCP billing (Q4) |
+| P5 Partner layer | Sep 2 | ClickHouse mirror + dashboard (or Parallel negotiator enrichment per Q1) | dashboard live-querying decisions. Delivered: dual-engine ClickHouse mirror (HTTP + simulator), analytical queries (p50/p95 latency, deny histogram, risk radar), ClickHouse MCP server, terminal dashboard CLI |
+| P6 Negotiator + polish | Sep 3–4 | full arc beats 6–8; inspector view; trailer video script | complete arc on camera. Delivered: automated 8-beat runner (`scripts/demo_arc_e2e.py`), interactive standalone HTML inspector (`src/doctus/inspector/` & `scripts/inspector.py`), timed 3-min video trailer script (`docs/TRAILER_SCRIPT.md`) |
+| Buffer / submission | Sep 5–6 | Devpost form, license file visible, backup video | submitted ≥24h early. Delivered: MIT `LICENSE`, Devpost submission doc (`docs/DEVPOST_SUBMISSION.md`), showcase `README.md`, 64 green tests |
 
 ## 7. Threat-model notes (name in pitch)
 

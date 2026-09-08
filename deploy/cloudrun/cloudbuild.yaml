@@ -1,0 +1,58 @@
+steps:
+  # 1. Build container image using Dockerfile (multi-stage)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:$COMMIT_SHA'
+      - '-t'
+      - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:latest'
+      - '.'
+
+  # 2. Push container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:latest'
+
+  # 3. Deploy to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'doctus-studio'
+      - '--image'
+      - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:$COMMIT_SHA'
+      - '--region'
+      - '$_DEPLOY_REGION'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+
+images:
+  - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:$COMMIT_SHA'
+  - '$_AR_REGION-docker.pkg.dev/$PROJECT_ID/$_AR_REPO/doctus-studio:latest'
+
+substitutions:
+  _AR_REGION: 'us-central1'
+  _AR_REPO: 'doctus'
+  _DEPLOY_REGION: 'us-central1'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

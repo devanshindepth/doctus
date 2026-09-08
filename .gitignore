@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 # vendored c2patool binary lives here locally (see docs/DESIGN.md §3.1); never committed
 tools/
+*.db
+.pytest_cache/
+.hypothesis/

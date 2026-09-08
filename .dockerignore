@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.hypothesis
+frontend/node_modules
+frontend/dist
+.DS_Store
+doctus_dashboard_demo.db
+extracted_js.txt
+extract_js.py
+extract_ids.py
+build_ui.py

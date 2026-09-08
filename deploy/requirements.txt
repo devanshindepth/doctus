@@ -1,0 +1,7 @@
+# Agent Engine runtime requirements for deploy/adk_app (P4).
+# Pinned loosely; tighten before the graded submission.
+google-cloud-aiplatform[agent_engines,adk]>=1.95
+cloudpickle>=3.1
+pyyaml>=6
+c2pa-python>=0.37
+pillow>=11

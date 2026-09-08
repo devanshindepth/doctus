@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Last Echo - Doctus Clearance Studio</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              950: '#050505',
+              900: '#0a0a0a',
+              850: '#121212',
+              800: '#171717',
+              700: '#262626',
+              600: '#404040',
+            },
+            crimson: {
+              400: '#f87171',
+              500: '#ef4444',
+              600: '#dc2626',
+              700: '#b91c1c',
+              800: '#991b1b',
+              900: '#7f1d1d',
+              950: '#450a0a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #050505;
+      color: #f5f5f5;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass {
+      background: rgba(10, 10, 10, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .red-glow {
+      box-shadow: 0 0 40px -10px rgba(220, 38, 38, 0.3);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #dc2626; }
+    
+    /* Tabs */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-btn.active {
+      background-color: rgba(220, 38, 38, 0.1);
+      color: #ef4444;
+      border-right: 2px solid #ef4444;
+    }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden antialiased selection:bg-crimson-600 selection:text-white">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-dark-900 border-r border-dark-800 flex flex-col justify-between shrink-0 z-20 shadow-xl">
+    <div>
+      <div class="h-16 flex items-center px-6 border-b border-dark-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded bg-crimson-600 flex items-center justify-center red-glow">
+            <i data-lucide="film" class="w-4 h-4 text-white"></i>
+          </div>
+          <div>
+            <span class="font-bold text-sm tracking-wide text-white">DOCTUS STUDIO</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-4">
+        <p class="text-[10px] uppercase font-semibold text-dark-600 mb-3 px-2 tracking-wider">Project</p>
+        <div class="px-2 py-1.5 mb-6 bg-dark-850 rounded border border-dark-800 flex items-center space-x-2">
+          <i data-lucide="folder-video" class="w-4 h-4 text-crimson-500"></i>
+          <span class="text-xs font-medium text-gray-300">The Last Echo</span>
+        </div>
+
+        <p class="text-[10px] uppercase font-semibold text-dark-600 mb-2 px-2 tracking-wider">Navigation</p>
+        <nav class="space-y-1" id="tabs-nav">
+          <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-gray-100 hover:bg-dark-800 transition">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="switchTab('provenance')" id="tab-btn-provenance" class="tab-btn w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-gray-100 hover:bg-dark-800 transition">
+            <i data-lucide="git-merge" class="w-4 h-4"></i>
+            <span>Asset Lineage</span>
+          </button>
+          <button onclick="switchTab('countersign')" id="tab-btn-countersign" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-gray-100 hover:bg-dark-800 transition">
+            <div class="flex items-center space-x-3">
+              <i data-lucide="pen-tool" class="w-4 h-4"></i>
+              <span>Legal Queue</span>
+            </div>
+            <span id="tab-badge-pending" class="hidden px-1.5 py-0.5 rounded text-[10px] font-bold bg-crimson-600 text-white">0</span>
+          </button>
+          <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="tab-btn w-full flex items-center space-x-3 px-3 py-2 rounded text-sm font-medium text-gray-400 hover:text-gray-100 hover:bg-dark-800 transition">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span>Engine Metrics</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+    
+    <div class="p-4 border-t border-dark-800">
+      <div class="flex items-center space-x-3 mb-4">
+        <img src="https://ui-avatars.com/api/?name=Elena+Vance&background=dc2626&color=fff" class="w-8 h-8 rounded-full border border-dark-700">
+        <div>
+          <p class="text-xs font-semibold text-white">Elena Vance</p>
+          <p class="text-[10px] text-gray-500">Post-Production Lead</p>
+        </div>
+      </div>
+      <button onclick="exportCertificate()" class="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700 rounded text-xs font-medium text-white transition">
+        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
+        <span>Export E&O Cert</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <main class="flex-1 flex flex-col min-w-0 bg-dark-950">
+    
+    <!-- TOP BAR -->
+    <header class="h-16 glass border-b border-dark-800 flex items-center justify-between px-6 z-10 shrink-0">
+      <div class="flex items-center space-x-4">
+        <h1 class="text-lg font-semibold text-white tracking-tight">Project Dashboard</h1>
+        <div class="h-4 w-px bg-dark-800"></div>
+        <div class="flex items-center space-x-3 text-xs">
+          <div class="flex items-center space-x-1.5 px-2 py-1 bg-dark-900 rounded border border-dark-800">
+             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+             <span class="text-gray-400">Gate: <span class="text-emerald-500 font-medium">Active</span></span>
+          </div>
+          <div class="flex items-center space-x-1.5 px-2 py-1 bg-dark-900 rounded border border-dark-800">
+             <i data-lucide="zap" class="w-3 h-3 text-amber-500"></i>
+             <span class="text-gray-400">Latency: <span id="header-p50-latency" class="text-amber-500 font-mono">--</span></span>
+          </div>
+          <div class="flex items-center space-x-1.5 px-2 py-1 bg-dark-900 rounded border border-dark-800">
+             <i data-lucide="database" class="w-3 h-3 text-blue-500"></i>
+             <span class="text-gray-400">DB: <span id="header-clickhouse-mode" class="text-blue-500">--</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEMO CONTROLS -->
+      <div class="flex items-center space-x-3">
+        <div class="text-right mr-2">
+          <p class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Demo Scenario</p>
+          <p id="demo-status-text" class="text-xs font-medium text-crimson-400">Ready to execute Beat 1</p>
+        </div>
+        <button id="btn-step-beat" onclick="stepDemoBeat()" class="p-2 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700 text-gray-300 hover:text-white transition" title="Step Next Beat">
+          <i data-lucide="step-forward" class="w-4 h-4 text-crimson-500"></i>
+        </button>
+        <button id="btn-auto-play" onclick="autoPlayDemo()" class="flex items-center space-x-2 px-3 py-2 rounded bg-crimson-600 hover:bg-crimson-500 text-white text-xs font-semibold shadow-lg shadow-crimson-900/50 transition">
+          <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+          <span>Auto-Play</span>
+        </button>
+        <button onclick="resetDemoState()" class="p-2 rounded bg-dark-900 hover:bg-dark-800 border border-dark-800 text-gray-500 hover:text-gray-300 transition" title="Reset">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- SCROLLABLE CONTENT -->
+    <div class="flex-1 overflow-y-auto p-6 relative">
+      
+      <!-- TAB: OVERVIEW -->
+      <div id="tab-content-overview" class="tab-content active max-w-6xl mx-auto space-y-6">
+        
+        <!-- VIDEO TRAILER & KPIs ROW -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Trailer -->
+          <div class="lg:col-span-2 bg-dark-900 rounded-xl border border-dark-800 overflow-hidden shadow-2xl relative flex items-center justify-center bg-black">
+            <div class="absolute top-4 left-4 z-10 px-2 py-1 bg-black/60 backdrop-blur rounded border border-white/10 flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-crimson-500"></span>
+              <span class="text-xs font-bold text-white uppercase tracking-wider">Cut 4 - Final Render</span>
+            </div>
+            <video class="w-full h-full object-contain" controls poster="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1625&auto=format&fit=crop">
+              <source src="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+
+          <!-- Project Stats / KPIs -->
+          <div class="bg-dark-900 rounded-xl border border-dark-800 p-5 flex flex-col space-y-4">
+            <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-crimson-500"></i>
+              <span>Clearance Overview</span>
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-3 flex-1">
+              <div class="bg-dark-950 p-3 rounded-lg border border-dark-800">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
+                <p class="text-2xl font-semibold text-white" id="kpi-assets">--</p>
+              </div>
+              <div class="bg-dark-950 p-3 rounded-lg border border-dark-800">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">C2PA Claims</p>
+                <p class="text-2xl font-semibold text-white" id="kpi-claims">--</p>
+              </div>
+              <div class="bg-dark-950 p-3 rounded-lg border border-dark-800">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Clearance Rate</p>
+                <p class="text-2xl font-semibold text-emerald-400" id="kpi-clearance-rate">--</p>
+              </div>
+              <div class="bg-dark-950 p-3 rounded-lg border border-dark-800">
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Pending Signatures</p>
+                <p class="text-2xl font-semibold text-amber-400" id="kpi-signatures">--</p>
+              </div>
+            </div>
+            
+            <div class="bg-dark-950 p-3 rounded-lg border border-dark-800 flex items-center justify-between">
+              <span class="text-xs text-gray-400">Total Decisions Processed</span>
+              <span class="text-sm font-bold text-white" id="kpi-allows-denies">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PREFLIGHT CHECK & LOGS ROW -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Preflight Tool -->
+          <div class="bg-dark-900 rounded-xl border border-dark-800 p-5">
+            <h3 class="text-sm font-semibold text-white mb-4 flex items-center space-x-2">
+              <i data-lucide="plane-takeoff" class="w-4 h-4 text-crimson-500"></i>
+              <span>Distribution Preflight Check</span>
+            </h3>
+            
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[10px] text-gray-500 uppercase mb-1">Target Asset</label>
+                <select id="pf-asset-select" class="w-full bg-dark-950 border border-dark-800 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-crimson-500">
+                  <option value="trailer_cut_v4">trailer_cut_v4</option>
+                  <option value="scene_1_composite">scene_1_composite</option>
+                  <option value="audio_mix_final">audio_mix_final</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-gray-500 uppercase mb-1">Channel / Platform</label>
+                <select id="pf-channel-select" class="w-full bg-dark-950 border border-dark-800 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-crimson-500">
+                  <option value="festival_screening">Festival Screening</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="theatrical">Theatrical</option>
+                  <option value="social_media">Social Media</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] text-gray-500 uppercase mb-1">Territory</label>
+                <select id="pf-territory-select" class="w-full bg-dark-950 border border-dark-800 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-crimson-500">
+                  <option value="US">United States (US)</option>
+                  <option value="Global">Global</option>
+                  <option value="EU">European Union (EU)</option>
+                </select>
+              </div>
+              <button onclick="runPreflightCheck()" class="w-full py-2 bg-crimson-600 hover:bg-crimson-500 text-white rounded text-xs font-semibold transition mt-2">
+                Run Clearance Simulation
+              </button>
+            </div>
+            
+            <div id="preflight-result-box" class="mt-4 hidden"></div>
+          </div>
+
+          <!-- Logs -->
+          <div class="lg:col-span-2 bg-dark-900 rounded-xl border border-dark-800 flex flex-col h-[400px]">
+            <div class="p-4 border-b border-dark-800 flex items-center justify-between shrink-0">
+              <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+                <i data-lucide="list-checks" class="w-4 h-4 text-crimson-500"></i>
+                <span>Live Clearance Engine Log</span>
+              </h3>
+            </div>
+            <div class="flex-1 overflow-auto p-0">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-dark-950 text-gray-500 sticky top-0 z-10 border-b border-dark-800">
+                  <tr>
+                    <th class="py-2 px-4 font-medium">ID</th>
+                    <th class="py-2 px-4 font-medium">Time</th>
+                    <th class="py-2 px-4 font-medium">Target</th>
+                    <th class="py-2 px-4 font-medium">Verdict</th>
+                    <th class="py-2 px-4 font-medium">Reason</th>
+                    <th class="py-2 px-4 font-medium">Trace</th>
+                  </tr>
+                </thead>
+                <tbody id="decisions-table-body" class="divide-y divide-dark-800">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Hidden elements needed for JS logic but not shown directly in new UI to prevent errors -->
+        <div class="hidden">
+           <span id="kpi-latency"></span>
+           <span id="kpi-pending-label"></span>
+        </div>
+      </div>
+
+      <!-- TAB: PROVENANCE -->
+      <div id="tab-content-provenance" class="tab-content max-w-6xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-white">Asset Lineage & Composition Graph</h2>
+          <p class="text-sm text-gray-400">Verifiable chain of title across all sub-components.</p>
+        </div>
+        <div id="provenance-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- TAB: COUNTERSIGN -->
+      <div id="tab-content-countersign" class="tab-content max-w-4xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-white">Legal Countersign Queue</h2>
+          <p class="text-sm text-gray-400">Review and approve automated contract extensions and rights bindings.</p>
+        </div>
+        <div id="countersign-queue-container" class="space-y-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- TAB: ANALYTICS -->
+      <div id="tab-content-analytics" class="tab-content max-w-6xl mx-auto space-y-6">
+        <div class="mb-6">
+          <h2 class="text-lg font-semibold text-white">Engine Metrics & Analytics</h2>
+          <p class="text-sm text-gray-400">Powered by ClickHouse mirror.</p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <div class="bg-dark-900 rounded-xl border border-dark-800 p-5">
+            <h3 class="text-sm font-semibold text-white mb-4">Gate Latency (ms)</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-4 bg-dark-950 rounded-lg border border-dark-800">
+                <span class="text-gray-500 text-xs uppercase">P50 (Median)</span>
+                <p id="an-p50" class="text-xl font-mono text-white mt-1">--</p>
+              </div>
+              <div class="p-4 bg-dark-950 rounded-lg border border-dark-800">
+                <span class="text-gray-500 text-xs uppercase">P90</span>
+                <p id="an-p90" class="text-xl font-mono text-white mt-1">--</p>
+              </div>
+              <div class="p-4 bg-dark-950 rounded-lg border border-dark-800">
+                <span class="text-gray-500 text-xs uppercase">P95</span>
+                <p id="an-p95" class="text-xl font-mono text-white mt-1">--</p>
+              </div>
+              <div class="p-4 bg-dark-950 rounded-lg border border-dark-800">
+                <span class="text-gray-500 text-xs uppercase">P99</span>
+                <p id="an-p99" class="text-xl font-mono text-crimson-400 mt-1">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-dark-900 rounded-xl border border-dark-800 p-5">
+            <h3 class="text-sm font-semibold text-white mb-4">Denial Reasons Breakdown</h3>
+            <div id="an-denials-bars" class="space-y-4"></div>
+          </div>
+          
+          <div class="col-span-1 lg:col-span-2 bg-dark-900 rounded-xl border border-dark-800 p-5">
+            <h3 class="text-sm font-semibold text-white mb-4">Risk Radar (Expiring Rights)</h3>
+            <div id="an-risk-radar"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- TRACE MODAL -->
+  <div id="trace-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-dark-900 border border-dark-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+      <div class="p-4 border-b border-dark-800 flex items-center justify-between">
+        <h3 id="modal-trace-title" class="font-semibold text-white">Closure Trace</h3>
+        <button onclick="closeTraceModal()" class="text-gray-500 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-4 overflow-auto flex-1 text-xs text-gray-300 font-mono" id="modal-trace-content"></div>
+      <div class="p-4 border-t border-dark-800 flex justify-end">
+        <button onclick="closeTraceModal()" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded text-xs font-semibold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INJECTED JS -->
+  <script>
+    // State
+    let currentBeat = 0;
+    let autoPlaying = false;
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('active', 'bg-dark-800', 'text-gray-100');
+        el.classList.add('text-gray-400');
+        el.style.borderRight = 'none';
+        el.style.backgroundColor = 'transparent';
+        el.style.color = '#9ca3af';
+      });
+      
+      document.getElementById('tab-content-' + tabId).classList.add('active');
+      const btn = document.getElementById('tab-btn-' + tabId);
+      btn.classList.add('active');
+      btn.style.backgroundColor = 'rgba(220, 38, 38, 0.1)';
+      btn.style.color = '#ef4444';
+      btn.style.borderRight = '2px solid #ef4444';
+
+      if (tabId === 'provenance') fetchProvenance();
+      if (tabId === 'countersign') fetchCountersignPending();
+      if (tabId === 'analytics') fetchAnalytics();
+      if (tabId === 'overview') {
+        fetchSummary();
+        fetchDecisions();
+      }
+    }
+
+    // Polling & Data Fetchers
+    async function fetchSummary() {
+      try {
+        const res = await fetch('/api/summary');
+        const d = await res.json();
+        if (d.ok && d.data) {
+          const s = d.data;
+          document.getElementById('kpi-clearance-rate').innerText = `${Math.round(s.clearance_rate * 100)}%`;
+          document.getElementById('kpi-allows-denies').innerText = `${s.allows} allowed / ${s.denies} blocked`;
+          document.getElementById('kpi-latency').innerText = `${s.p50_latency_ms.toFixed(2)} ms`;
+          document.getElementById('header-p50-latency').innerText = `${s.p50_latency_ms.toFixed(2)} ms`;
+          document.getElementById('kpi-assets').innerText = s.studio_assets;
+          document.getElementById('kpi-claims').innerText = `${s.verified_claims} verified claims`;
+          document.getElementById('kpi-signatures').innerText = s.countersign_actions;
+          
+          const pendingCount = s.pending_approvals || 0;
+          document.getElementById('kpi-pending-label').innerText = `${pendingCount} pending`;
+          const badge = document.getElementById('tab-badge-pending');
+          if (pendingCount > 0) {
+            badge.innerText = pendingCount;
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');
+          }
+
+          currentBeat = s.current_beat || 0;
+          updateDemoUI();
+        }
+      } catch (err) {
+        console.error('Summary fetch error:', err);
+      }
+    }
+
+    async function fetchDecisions() {
+      try {
+        const res = await fetch('/api/decisions');
+        const d = await res.json();
+        if (d.ok && d.data) {
+          const tbody = document.getElementById('decisions-table-body');
+          tbody.innerHTML = '';
+          if (d.data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No clearance checks recorded yet. Run a preflight or demo beat above.</td></tr>`;
+            return;
+          }
+          d.data.slice().reverse().forEach(dec => {
+            const tr = document.createElement('tr');
+            tr.className = dec.allowed ? 'hover:bg-dark-900/60' : 'hover:bg-crimson-950/20 bg-crimson-950/10';
+            
+            const badge = dec.allowed
+              ? `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"><i data-lucide="check" class="w-3 h-3"></i><span>ALLOWED</span></span>`
+              : `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-bold bg-crimson-500/20 text-crimson-400 border border-crimson-500/40"><i data-lucide="ban" class="w-3 h-3"></i><span>DENIED</span></span>`;
+
+            const reasonStr = dec.allowed ? 'Full Ancestor Clearance' : `<strong class="text-crimson-400">${dec.reason}</strong>: ${dec.detail || ''}`;
+            const targetStr = `${dec.verb} ${dec.asset_id} ${dec.channel ? `(${dec.channel}/${dec.territory || 'US'})` : ''}`;
+
+            tr.innerHTML = `
+              <td class="py-3 px-4 text-slate-400">#${dec.decision_id}</td>
+              <td class="py-3 px-4 text-slate-500 text-[11px]">${dec.ts.substring(11, 19)}</td>
+              <td class="py-3 px-4 text-slate-200 font-semibold">${targetStr}</td>
+              <td class="py-3 px-4">${badge}</td>
+              <td class="py-3 px-4 text-slate-300 max-w-md truncate" title="${dec.detail || ''}">${reasonStr}</td>
+              <td class="py-3 px-4">
+                <button onclick='openTraceModal(${JSON.stringify(dec)})' class="px-2 py-1 rounded bg-dark-800 hover:bg-dark-700 text-slate-300 hover:text-white border border-dark-600 text-[11px] transition">
+                  Closure Trace
+                </button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error('Decisions fetch error:', err);
+      }
+    }
+
+    async function runPreflightCheck() {
+      const asset_id = document.getElementById('pf-asset-select').value;
+      const channel = document.getElementById('pf-channel-select').value;
+      const territory = document.getElementById('pf-territory-select').value;
+
+      try {
+        const res = await fetch('/api/preflight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset_id, verb: 'publish', channel, territory })
+        });
+        const d = await res.json();
+        const box = document.getElementById('preflight-result-box');
+        box.classList.remove('hidden');
+
+        if (d.ok && d.verdict) {
+          const v = d.verdict;
+          if (v.allowed) {
+            box.innerHTML = `
+              <div class="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 flex items-start space-x-3">
+                <div class="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 mt-0.5">
+                  <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center space-x-2">
+                    <h4 class="text-sm font-bold text-emerald-400">CLEARANCE CONFIRMED — ALLOWED</h4>
+                    <span class="text-xs font-mono text-slate-400">Decision #${v.decision_id || 'live'}</span>
+                  </div>
+                  <p class="text-xs text-slate-300 mt-1">All ancestor C2PA claims and ODRL scopes cover distribution on <strong>${channel}</strong> in <strong>${territory}</strong>.</p>
+                </div>
+              </div>
+            `;
+          } else {
+            box.innerHTML = `
+              <div class="p-4 rounded-xl bg-crimson-950/40 border border-crimson-500/50 flex items-start space-x-3 red-glow">
+                <div class="p-2 rounded-lg bg-crimson-500/20 text-crimson-400 mt-0.5">
+                  <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                      <h4 class="text-sm font-bold text-crimson-400">GATE BLOCKED — ${v.reason}</h4>
+                      <span class="text-xs font-mono text-slate-400">Decision #${v.decision_id || 'live'}</span>
+                    </div>
+                    <button onclick="triggerNegotiationDraft('${asset_id}', '${channel}', '${territory}')" class="px-3 py-1 rounded bg-crimson-600 hover:bg-crimson-500 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow">
+                      <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                      <span>Draft Extension with Negotiator</span>
+                    </button>
+                  </div>
+                  <p class="text-xs text-slate-200 mt-1.5 font-mono">${v.detail}</p>
+                  <p class="text-xs text-amber-300/90 mt-1"><strong>Fix Path:</strong> ${v.negotiation_hint || 'Requires human-countersigned scope extension.'}</p>
+                </div>
+              </div>
+            `;
+          }
+          lucide.createIcons();
+          fetchSummary();
+          fetchDecisions();
+        }
+      } catch (err) {
+        console.error('Preflight error:', err);
+      }
+    }
+
+    async function triggerNegotiationDraft(asset_id, channel, territory) {
+      await stepDemoBeat(6);
+      switchTab('countersign');
+    }
+
+    // Provenance Tab
+    async function fetchProvenance() {
+      try {
+        const res = await fetch('/api/graph');
+        const d = await res.json();
+        if (d.ok && d.data) {
+          const grid = document.getElementById('provenance-cards-grid');
+          grid.innerHTML = '';
+          d.data.nodes.forEach(node => {
+            const card = document.createElement('div');
+            card.className = 'glass-panel rounded-xl p-5 border border-dark-700/80 flex flex-col justify-between hover:border-crimson-500/40 transition';
+            
+            const badges = node.claims.map(c => `
+              <div class="p-2 rounded bg-dark-900 border border-dark-700 text-xs font-mono flex items-center justify-between">
+                <span class="text-slate-300 font-semibold">${c.kind}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded ${c.trusted ? 'bg-emerald-500/20 text-emerald-400' : 'bg-crimson-500/20 text-crimson-400 font-bold'}">${c.trusted ? 'VERIFIED' : 'UNTRUSTED'}</span>
+              </div>
+            `).join('');
+
+            card.innerHTML = `
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-mono text-crimson-400 font-bold">${node.id}</span>
+                  <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-dark-800 text-slate-400 border border-dark-700">${node.is_composite ? 'Composite' : 'Root Asset'}</span>
+                </div>
+                <h4 class="text-base font-bold text-white mb-3">${node.label}</h4>
+                <div class="space-y-2 mb-4">
+                  <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">C2PA Assertions (${node.claims.length}):</p>
+                  ${badges || '<p class="text-xs text-slate-500">No claims attached</p>'}
+                </div>
+              </div>
+              <div class="pt-3 border-t border-dark-700/60 flex items-center justify-between text-xs text-slate-400">
+                <span>Trust: <strong class="text-emerald-400">${node.has_untrusted ? 'Untrusted' : 'Doctus Root'}</strong></span>
+                <button onclick="inspectAsset('${node.id}')" class="text-crimson-400 hover:text-crimson-300 font-semibold">Inspect</button>
+              </div>
+            `;
+            grid.appendChild(card);
+          });
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.error('Provenance fetch error:', err);
+      }
+    }
+
+    // Countersign Tab
+    async function fetchCountersignPending() {
+      try {
+        const res = await fetch('/api/countersign/pending');
+        const d = await res.json();
+        const container = document.getElementById('countersign-queue-container');
+        container.innerHTML = '';
+
+        if (d.ok && d.data && d.data.length > 0) {
+          d.data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'glass-panel rounded-xl p-5 border border-amber-500/40 relative overflow-hidden';
+            card.innerHTML = `
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-dark-700">
+                <div class="flex items-center space-x-3">
+                  <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                    <i data-lucide="file-signature" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white font-mono">${item.draft_id}</h4>
+                    <p class="text-xs text-slate-400">Target Asset: <strong class="text-slate-200">${item.asset_id}</strong> (${item.kind})</p>
+                  </div>
+                </div>
+                <span class="inline-flex items-center space-x-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                  <span>PENDING HUMAN SIGNATURE</span>
+                </span>
+              </div>
+
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-3.5 rounded-lg bg-dark-900 border border-dark-700 text-xs">
+                  <span class="text-slate-400 font-bold uppercase tracking-wider block mb-1">Human Summary:</span>
+                  <p class="text-slate-200 font-sans leading-relaxed">${item.summary}</p>
+                </div>
+                <div class="p-3.5 rounded-lg bg-dark-900 border border-dark-700 text-xs font-mono">
+                  <span class="text-slate-400 font-bold uppercase tracking-wider block mb-1">ODRL 2.2 Permissions Payload:</span>
+                  <pre class="text-slate-300 overflow-x-auto text-[11px]">${JSON.stringify(JSON.parse(item.odrl_json), null, 2)}</pre>
+                </div>
+              </div>
+
+              <div class="mt-5 pt-4 border-t border-dark-700 flex items-center justify-between">
+                <div class="text-xs text-slate-400">
+                  <span>Signer Authority: <strong>Elena Vance (Studio Legal Lead)</strong></span>
+                </div>
+                <button onclick="approveDraft('${item.draft_id}')" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/30 transition flex items-center space-x-2">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
+                  <span>Countersign &amp; Bind Rights</span>
+                </button>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-500 font-sans">
+              <i data-lucide="check-circle-2" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+              <p class="text-sm font-semibold">No pending instruments in countersign queue.</p>
+              <p class="text-xs mt-1">All agent proposals are fully countersigned or none have been drafted yet.</p>
+            </div>
+          `;
+        }
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Countersign fetch error:', err);
+      }
+    }
+
+    async function approveDraft(draft_id) {
+      try {
+        const res = await fetch('/api/countersign/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draft_id, approver: "Elena Vance (Studio Legal Lead)" })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          fetchSummary();
+          fetchCountersignPending();
+          fetchDecisions();
+          alert(`Instrument Approved! Signed into rights graph as claim: ${d.claim_id}`);
+        } else {
+          alert(`Error approving draft: ${d.error}`);
+        }
+      } catch (err) {
+        console.error('Approval error:', err);
+      }
+    }
+
+    // Analytics Tab
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch('/api/analytics');
+        const d = await res.json();
+        if (d.ok && d.data) {
+          const a = d.data;
+          // Latency numbers
+          document.getElementById('an-p50').innerText = `${a.latencies.p50.toFixed(2)} ms`;
+          document.getElementById('an-p90').innerText = `${a.latencies.p90.toFixed(2)} ms`;
+          document.getElementById('an-p95').innerText = `${a.latencies.p95.toFixed(2)} ms`;
+          document.getElementById('an-p99').innerText = `${a.latencies.p99.toFixed(2)} ms`;
+
+          // Denial bars
+          const dBox = document.getElementById('an-denials-bars');
+          dBox.innerHTML = '';
+          const denies = a.denials || {};
+          const keys = Object.keys(denies);
+          if (keys.length === 0) {
+            dBox.innerHTML = '<p class="text-xs text-slate-500 py-4">No denials recorded.</p>';
+          } else {
+            const maxVal = Math.max(...Object.values(denies)) || 1;
+            keys.forEach(k => {
+              const val = denies[k];
+              const pct = Math.round((val / maxVal) * 100);
+              dBox.innerHTML += `
+                <div>
+                  <div class="flex justify-between text-xs font-mono mb-1">
+                    <span class="text-slate-300 font-semibold">${k}</span>
+                    <span class="text-crimson-400 font-bold">${val} count</span>
+                  </div>
+                  <div class="w-full bg-dark-900 rounded-full h-2.5">
+                    <div class="bg-crimson-600 h-2.5 rounded-full" style="width: ${pct}%"></div>
+                  </div>
+                </div>
+              `;
+            });
+          }
+
+          // Risk radar
+          const rBox = document.getElementById('an-risk-radar');
+          const alerts = a.expiring_alerts || [];
+          if (alerts.length === 0) {
+            rBox.innerHTML = '<p class="text-xs text-slate-500 py-4">All active claims well within validity interval.</p>';
+          } else {
+            let table = `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300 font-mono">
+                  <thead class="bg-dark-900 text-slate-400 border-b border-dark-700">
+                    <tr><th class="py-2.5 px-3">Claim ID</th><th class="py-2.5 px-3">Asset ID</th><th class="py-2.5 px-3">Days Remaining</th><th class="py-2.5 px-3">Status</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-dark-700/60">
+            `;
+            alerts.forEach(al => {
+              table += `
+                <tr>
+                  <td class="py-2.5 px-3 font-semibold text-slate-200">${al.claim_id}</td>
+                  <td class="py-2.5 px-3">${al.asset_id}</td>
+                  <td class="py-2.5 px-3 text-amber-400 font-bold">${al.days_remaining} days</td>
+                  <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">${al.status}</span></td>
+                </tr>
+              `;
+            });
+            table += '</tbody></table></div>';
+            rBox.innerHTML = table;
+          }
+        }
+      } catch (err) {
+        console.error('Analytics fetch error:', err);
+      }
+    }
+
+    // Demo Walkthrough Controls
+    function updateDemoUI() {
+      const beatNames = [
+        "Ready to begin",
+        "Beat 1: Veo Generation (Signed C2PA)",
+        "Beat 2: Likeness Consent Check (Allowed)",
+        "Beat 3: Composite Multi-Track Clip",
+        "Beat 4: Festival Publish (Allowed)",
+        "Beat 5: Trailer Release Attempt (Blocked)",
+        "Beat 6: Autonomous ODRL Negotiation",
+        "Beat 7: Human Countersignature",
+        "Beat 8: Re-publish Trailer (Allowed!)"
+      ];
+      const nextBeat = currentBeat + 1;
+      const statusText = document.getElementById('demo-status-text');
+      if (currentBeat >= 8) {
+        statusText.innerText = "Completed: Full 8-Beat Arc Verified!";
+        statusText.className = "text-xs font-mono font-semibold text-emerald-400";
+      } else {
+        statusText.innerText = `Current: ${beatNames[currentBeat]} -> Next: Beat ${nextBeat}`;
+        statusText.className = "text-xs font-mono font-semibold text-crimson-300";
+      }
+    }
+
+    async function stepDemoBeat(specificBeat = null) {
+      try {
+        const res = await fetch('/api/demo/run_beat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ beat: specificBeat })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          fetchSummary();
+          fetchDecisions();
+          if (d.beat === 6) fetchCountersignPending();
+        } else {
+          alert(d.message || 'Error running beat');
+        }
+      } catch (err) {
+        console.error('Step beat error:', err);
+      }
+    }
+
+    async function autoPlayDemo() {
+      if (autoPlaying) return;
+      autoPlaying = true;
+      const btn = document.getElementById('btn-auto-play');
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Playing Arc...</span>`;
+      lucide.createIcons();
+
+      for (let b = (currentBeat >= 8 ? 1 : currentBeat + 1); b <= 8; b++) {
+        await stepDemoBeat(b);
+        await new Promise(r => setTimeout(r, 1400));
+      }
+
+      autoPlaying = false;
+      btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i><span>Auto-Play Full Arc</span>`;
+      lucide.createIcons();
+    }
+
+    async function resetDemoState() {
+      try {
+        await fetch('/api/demo/reset', { method: 'POST' });
+        currentBeat = 0;
+        fetchSummary();
+        fetchDecisions();
+        fetchCountersignPending();
+        alert('Demo state reset to clean baseline.');
+      } catch (err) {
+        console.error('Reset error:', err);
+      }
+    }
+
+    function exportCertificate() {
+      window.open('/api/certificate/export', '_blank');
+    }
+
+    // Modal helpers
+    function openTraceModal(decision) {
+      document.getElementById('modal-trace-title').innerText = `Closure Trace: Decision #${decision.decision_id}`;
+      let claimsContent = '<p class="text-slate-500">No closure trace available.</p>';
+      if (decision.claims_evaluated_json) {
+        try {
+          const parsed = JSON.parse(decision.claims_evaluated_json);
+          claimsContent = `<pre class="p-3 bg-dark-900 rounded-lg border border-dark-700 overflow-x-auto text-[11px]">${JSON.stringify(parsed, null, 2)}</pre>`;
+        } catch (e) {
+          claimsContent = `<pre>${decision.claims_evaluated_json}</pre>`;
+        }
+      }
+      document.getElementById('modal-trace-content').innerHTML = `
+        <div><strong>Proposed Action:</strong> <pre class="p-2 bg-dark-900 rounded mt-1">${decision.action_json || `${decision.verb} ${decision.asset_id}`}</pre></div>
+        <div class="mt-3"><strong>Evaluated Claims Closure:</strong> ${claimsContent}</div>
+      `;
+      document.getElementById('trace-modal').classList.remove('hidden');
+    }
+
+    function closeTraceModal() {
+      document.getElementById('trace-modal').classList.add('hidden');
+    }
+
+    // Initial boot
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      fetchSummary();
+      fetchDecisions();
+      setInterval(fetchSummary, 5000);
+    });
+  </script>
+</body>
+</html>
